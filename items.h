@@ -1,7 +1,7 @@
 /* See items.c */
 uint64_t get_cas_id(void);
 
-#ifdef CLHT
+#ifdef NVM
 void item_gc_init(unsigned int size_limit, int num_threads);
 void item_gc_thread_init(int thread_id);
 #endif
@@ -18,7 +18,7 @@ void do_item_remove(item *it);
 void do_item_update(item *it);   /** update LRU time to current and reposition */
 void do_item_update_nolock(item *it);
 int  do_item_replace(item *it, item *new_it, const uint32_t hv);
-#ifdef CLHT
+#ifdef NVM
 void do_item_set(item *it, const uint32_t hv);
 int  do_item_add(item *it, const uint32_t hv);
 #endif
@@ -32,7 +32,7 @@ void item_stats_sizes(ADD_STAT add_stats, void *c);
 
 item *do_item_get(const char *key, const size_t nkey, const uint32_t hv);
 item *do_item_touch(const char *key, const size_t nkey, uint32_t exptime, const uint32_t hv);
-#ifdef CLHT
+#ifdef NVM
 void do_item_release(item* it);
 #endif
 void item_stats_reset(void);

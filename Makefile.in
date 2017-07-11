@@ -83,36 +83,39 @@ target_triplet = @target@
 bin_PROGRAMS = memcached$(EXEEXT)
 noinst_PROGRAMS = memcached-debug$(EXEEXT) sizes$(EXEEXT) \
 	testapp$(EXEEXT) timedrun$(EXEEXT)
-@BUILD_CACHE_TRUE@am__append_1 = cache.c
-@BUILD_CACHE_TRUE@am__append_2 = cache.c
-@BUILD_SOLARIS_PRIVS_TRUE@am__append_3 = solaris_priv.c
-@ENABLE_SASL_TRUE@am__append_4 = sasl_defs.c
-@USE_CLHT_LB_TRUE@am__append_5 = atomic_ops.h clht.h \
-@USE_CLHT_LB_TRUE@		     ssmem.h ssmem.c \
-@USE_CLHT_LB_TRUE@		     clht_util.h clht_util.c \
-@USE_CLHT_LB_TRUE@                     clht_lb_res.h clht_lb_res.c clht_gc.c
+@BUILD_CACHE_TRUE@am__append_1 = cache.cpp
+@BUILD_CACHE_TRUE@am__append_2 = cache.cpp
+@BUILD_SOLARIS_PRIVS_TRUE@am__append_3 = solaris_priv.cpp
+@ENABLE_SASL_TRUE@am__append_4 = sasl_defs.cpp
+@USE_NV_LF_TRUE@am__append_5 = atomic_ops_if.h hashtable.h hashtable.cpp \
+@USE_NV_LF_TRUE@            intset.cpp intset.h lf-linkedlist.cpp lf-linkedlist.h \
+@USE_NV_LF_TRUE@            lf-common.h common.h random.h latency.h barrier.h \
+@USE_NV_LF_TRUE@            main_test_loop.h utils.h measurements.h nv_lf_util.h nv_lf_util.cpp
 
-@USE_CLHT_LB_TRUE@am__append_6 = -DCLHT
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@am__append_7 = atomic_ops.h clht.h \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@		     ssmem.h ssmem.c \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@		     clht_util.h clht_util.c \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@		     clht_lf_res.h clht_lf_res.c \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@		     clht_lb_res.h clht_gc.c
-
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@am__append_8 = -DCLHT
+@USE_NV_LF_TRUE@am__append_6 = -DNVM -I$(NVRAM_PATH)/include/libnvram \
+@USE_NV_LF_TRUE@	-I$(NVML_PATH)/include \
+@USE_NV_LF_TRUE@	-I$(JEMALLOC_PATH)/include \
+@USE_NV_LF_TRUE@	-I$(ATOMIC_OPS_PATH)/include \
+@USE_NV_LF_TRUE@	-I$(ATOMIC_OPS_PATH)/include/atomic_ops \
+@USE_NV_LF_TRUE@	-I$(ATOMIC_OPS_PATH)/include/atomic_ops/sysdeps \
+@USE_NV_LF_TRUE@	-I./external/include
+@USE_NV_LF_TRUE@am__append_7 = -lrt -lm -L${JEMALLOC_PATH}/lib \
+@USE_NV_LF_TRUE@	-Wl,-rpath,${JEMALLOC_PATH}/lib -ljemalloc \
+@USE_NV_LF_TRUE@	-L${NVRAM_PATH}/lib -lnvram -L${NVML_PATH}/lib \
+@USE_NV_LF_TRUE@	-lpmem -lpmemobj -L./external/lib
+@BUILD_DTRACE_TRUE@am__append_8 = memcached_dtrace.h
 @BUILD_DTRACE_TRUE@am__append_9 = memcached_dtrace.h
-@BUILD_DTRACE_TRUE@am__append_10 = memcached_dtrace.h
+@DTRACE_INSTRUMENT_OBJ_TRUE@am__append_10 = memcached_dtrace.o
 @DTRACE_INSTRUMENT_OBJ_TRUE@am__append_11 = memcached_dtrace.o
-@DTRACE_INSTRUMENT_OBJ_TRUE@am__append_12 = memcached_dtrace.o
+@DTRACE_INSTRUMENT_OBJ_TRUE@am__append_12 = memcached_debug_dtrace.o
 @DTRACE_INSTRUMENT_OBJ_TRUE@am__append_13 = memcached_debug_dtrace.o
-@DTRACE_INSTRUMENT_OBJ_TRUE@am__append_14 = memcached_debug_dtrace.o
-@DTRACE_INSTRUMENT_OBJ_TRUE@am__append_15 = memcached_dtrace.o memcached_debug_dtrace.o
+@DTRACE_INSTRUMENT_OBJ_TRUE@am__append_14 = memcached_dtrace.o memcached_debug_dtrace.o
 subdir = .
-DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
+DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
+	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
-	$(srcdir)/config.h.in depcomp $(pkginclude_HEADERS) AUTHORS \
-	COPYING ChangeLog NEWS compile config.guess config.sub \
-	install-sh missing
+	$(srcdir)/config.h.in depcomp $(pkginclude_HEADERS) COPYING \
+	compile config.guess config.sub install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/version.m4 \
 	$(top_srcdir)/m4/c99-backport.m4 $(top_srcdir)/configure.ac
@@ -126,25 +129,24 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(pkgincludedir)"
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
-am__memcached_SOURCES_DIST = memcached.c memcached.h hash.c hash.h \
-	jenkins_hash.c jenkins_hash.h murmur3_hash.c murmur3_hash.h \
-	slabs.c slabs.h items.c items.h assoc.c assoc.h thread.c \
-	daemon.c stats.c stats.h util.c util.h trace.h cache.h \
-	sasl_defs.h cache.c solaris_priv.c sasl_defs.c atomic_ops.h \
-	clht.h ssmem.h ssmem.c clht_util.h clht_util.c clht_lb_res.h \
-	clht_lb_res.c clht_gc.c clht_lf_res.h clht_lf_res.c
+am__memcached_SOURCES_DIST = memcached.cpp memcached.h hash.cpp hash.h \
+	jenkins_hash.cpp jenkins_hash.h murmur3_hash.cpp \
+	murmur3_hash.h slabs.cpp slabs.h items.cpp items.h assoc.cpp \
+	assoc.h thread.cpp daemon.cpp stats.cpp stats.h util.cpp \
+	util.h trace.h cache.h sasl_defs.h cache.cpp solaris_priv.cpp \
+	sasl_defs.cpp atomic_ops_if.h hashtable.h hashtable.cpp \
+	intset.cpp intset.h lf-linkedlist.cpp lf-linkedlist.h \
+	lf-common.h common.h random.h latency.h barrier.h \
+	main_test_loop.h utils.h measurements.h nv_lf_util.h \
+	nv_lf_util.cpp
 @BUILD_CACHE_TRUE@am__objects_1 = memcached-cache.$(OBJEXT)
 @BUILD_SOLARIS_PRIVS_TRUE@am__objects_2 =  \
 @BUILD_SOLARIS_PRIVS_TRUE@	memcached-solaris_priv.$(OBJEXT)
 @ENABLE_SASL_TRUE@am__objects_3 = memcached-sasl_defs.$(OBJEXT)
-@USE_CLHT_LB_TRUE@am__objects_4 = memcached-ssmem.$(OBJEXT) \
-@USE_CLHT_LB_TRUE@	memcached-clht_util.$(OBJEXT) \
-@USE_CLHT_LB_TRUE@	memcached-clht_lb_res.$(OBJEXT) \
-@USE_CLHT_LB_TRUE@	memcached-clht_gc.$(OBJEXT)
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@am__objects_5 = memcached-ssmem.$(OBJEXT) \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@	memcached-clht_util.$(OBJEXT) \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@	memcached-clht_lf_res.$(OBJEXT) \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@	memcached-clht_gc.$(OBJEXT)
+@USE_NV_LF_TRUE@am__objects_4 = memcached-hashtable.$(OBJEXT) \
+@USE_NV_LF_TRUE@	memcached-intset.$(OBJEXT) \
+@USE_NV_LF_TRUE@	memcached-lf-linkedlist.$(OBJEXT) \
+@USE_NV_LF_TRUE@	memcached-nv_lf_util.$(OBJEXT)
 am_memcached_OBJECTS = memcached-memcached.$(OBJEXT) \
 	memcached-hash.$(OBJEXT) memcached-jenkins_hash.$(OBJEXT) \
 	memcached-murmur3_hash.$(OBJEXT) memcached-slabs.$(OBJEXT) \
@@ -152,50 +154,38 @@ am_memcached_OBJECTS = memcached-memcached.$(OBJEXT) \
 	memcached-thread.$(OBJEXT) memcached-daemon.$(OBJEXT) \
 	memcached-stats.$(OBJEXT) memcached-util.$(OBJEXT) \
 	$(am__objects_1) $(am__objects_2) $(am__objects_3) \
-	$(am__objects_4) $(am__objects_5)
+	$(am__objects_4)
 memcached_OBJECTS = $(am_memcached_OBJECTS)
-am__memcached_debug_SOURCES_DIST = memcached.c memcached.h hash.c \
-	hash.h jenkins_hash.c jenkins_hash.h murmur3_hash.c \
-	murmur3_hash.h slabs.c slabs.h items.c items.h assoc.c assoc.h \
-	thread.c daemon.c stats.c stats.h util.c util.h trace.h \
-	cache.h sasl_defs.h cache.c solaris_priv.c sasl_defs.c \
-	atomic_ops.h clht.h ssmem.h ssmem.c clht_util.h clht_util.c \
-	clht_lb_res.h clht_lb_res.c clht_gc.c clht_lf_res.h \
-	clht_lf_res.c
-@BUILD_CACHE_TRUE@am__objects_6 = memcached_debug-cache.$(OBJEXT)
-@BUILD_SOLARIS_PRIVS_TRUE@am__objects_7 = memcached_debug-solaris_priv.$(OBJEXT)
-@ENABLE_SASL_TRUE@am__objects_8 = memcached_debug-sasl_defs.$(OBJEXT)
-@USE_CLHT_LB_TRUE@am__objects_9 = memcached_debug-ssmem.$(OBJEXT) \
-@USE_CLHT_LB_TRUE@	memcached_debug-clht_util.$(OBJEXT) \
-@USE_CLHT_LB_TRUE@	memcached_debug-clht_lb_res.$(OBJEXT) \
-@USE_CLHT_LB_TRUE@	memcached_debug-clht_gc.$(OBJEXT)
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@am__objects_10 = memcached_debug-ssmem.$(OBJEXT) \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@	memcached_debug-clht_util.$(OBJEXT) \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@	memcached_debug-clht_lf_res.$(OBJEXT) \
-@USE_CLHT_LB_FALSE@@USE_CLHT_LF_TRUE@	memcached_debug-clht_gc.$(OBJEXT)
-am__objects_11 = memcached_debug-memcached.$(OBJEXT) \
-	memcached_debug-hash.$(OBJEXT) \
-	memcached_debug-jenkins_hash.$(OBJEXT) \
-	memcached_debug-murmur3_hash.$(OBJEXT) \
-	memcached_debug-slabs.$(OBJEXT) \
-	memcached_debug-items.$(OBJEXT) \
-	memcached_debug-assoc.$(OBJEXT) \
-	memcached_debug-thread.$(OBJEXT) \
-	memcached_debug-daemon.$(OBJEXT) \
-	memcached_debug-stats.$(OBJEXT) memcached_debug-util.$(OBJEXT) \
-	$(am__objects_6) $(am__objects_7) $(am__objects_8) \
-	$(am__objects_9) $(am__objects_10)
-am_memcached_debug_OBJECTS = $(am__objects_11)
+memcached_LINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) \
+	$(memcached_LDFLAGS) $(LDFLAGS) -o $@
+am__memcached_debug_SOURCES_DIST = memcached.cpp memcached.h hash.cpp \
+	hash.h jenkins_hash.cpp jenkins_hash.h murmur3_hash.cpp \
+	murmur3_hash.h slabs.cpp slabs.h items.cpp items.h assoc.cpp \
+	assoc.h thread.cpp daemon.cpp stats.cpp stats.h util.cpp \
+	util.h trace.h cache.h sasl_defs.h cache.cpp solaris_priv.cpp \
+	sasl_defs.cpp atomic_ops_if.h hashtable.h hashtable.cpp \
+	intset.cpp intset.h lf-linkedlist.cpp lf-linkedlist.h \
+	lf-common.h common.h random.h latency.h barrier.h \
+	main_test_loop.h utils.h measurements.h nv_lf_util.h \
+	nv_lf_util.cpp
+@BUILD_CACHE_TRUE@am__objects_5 = cache.$(OBJEXT)
+@BUILD_SOLARIS_PRIVS_TRUE@am__objects_6 = solaris_priv.$(OBJEXT)
+@ENABLE_SASL_TRUE@am__objects_7 = sasl_defs.$(OBJEXT)
+@USE_NV_LF_TRUE@am__objects_8 = hashtable.$(OBJEXT) intset.$(OBJEXT) \
+@USE_NV_LF_TRUE@	lf-linkedlist.$(OBJEXT) nv_lf_util.$(OBJEXT)
+am__objects_9 = memcached.$(OBJEXT) hash.$(OBJEXT) \
+	jenkins_hash.$(OBJEXT) murmur3_hash.$(OBJEXT) slabs.$(OBJEXT) \
+	items.$(OBJEXT) assoc.$(OBJEXT) thread.$(OBJEXT) \
+	daemon.$(OBJEXT) stats.$(OBJEXT) util.$(OBJEXT) \
+	$(am__objects_5) $(am__objects_6) $(am__objects_7) \
+	$(am__objects_8)
+am_memcached_debug_OBJECTS = $(am__objects_9)
 memcached_debug_OBJECTS = $(am_memcached_debug_OBJECTS)
-memcached_debug_LINK = $(CCLD) $(memcached_debug_CFLAGS) $(CFLAGS) \
-	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-sizes_SOURCES = sizes.c
-sizes_OBJECTS = sizes.$(OBJEXT)
+am_sizes_OBJECTS = sizes.$(OBJEXT)
+sizes_OBJECTS = $(am_sizes_OBJECTS)
 sizes_LDADD = $(LDADD)
-am__testapp_SOURCES_DIST = testapp.c util.c util.h cache.c
-@BUILD_CACHE_TRUE@am__objects_12 = cache.$(OBJEXT)
-am_testapp_OBJECTS = testapp.$(OBJEXT) util.$(OBJEXT) \
-	$(am__objects_12)
+am__testapp_SOURCES_DIST = testapp.cpp util.cpp util.h cache.cpp
+am_testapp_OBJECTS = testapp.$(OBJEXT) util.$(OBJEXT) $(am__objects_5)
 testapp_OBJECTS = $(am_testapp_OBJECTS)
 testapp_LDADD = $(LDADD)
 am_timedrun_OBJECTS = timedrun.$(OBJEXT)
@@ -221,6 +211,19 @@ AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+AM_V_CXX = $(am__v_CXX_@AM_V@)
+am__v_CXX_ = $(am__v_CXX_@AM_DEFAULT_V@)
+am__v_CXX_0 = @echo "  CXX     " $@;
+am__v_CXX_1 = 
+CXXLD = $(CXX)
+CXXLINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
+	-o $@
+AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
+am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
+am__v_CXXLD_0 = @echo "  CXXLD   " $@;
+am__v_CXXLD_1 = 
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 AM_V_CC = $(am__v_CC_@AM_V@)
@@ -233,10 +236,10 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(memcached_SOURCES) $(memcached_debug_SOURCES) sizes.c \
-	$(testapp_SOURCES) $(timedrun_SOURCES)
+SOURCES = $(memcached_SOURCES) $(memcached_debug_SOURCES) \
+	$(sizes_SOURCES) $(testapp_SOURCES) $(timedrun_SOURCES)
 DIST_SOURCES = $(am__memcached_SOURCES_DIST) \
-	$(am__memcached_debug_SOURCES_DIST) sizes.c \
+	$(am__memcached_debug_SOURCES_DIST) $(sizes_SOURCES) \
 	$(am__testapp_SOURCES_DIST) $(timedrun_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
@@ -360,9 +363,12 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
-CFLAGS = @CFLAGS@ $(am__append_6) $(am__append_8)
+CFLAGS = @CFLAGS@
 CPP = @CPP@
-CPPFLAGS = @CPPFLAGS@
+CPPFLAGS = @CPPFLAGS@ $(am__append_6)
+CXX = @CXX@
+CXXDEPMODE = @CXXDEPMODE@
+CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
@@ -382,7 +388,7 @@ INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
-LIBS = @LIBS@
+LIBS = @LIBS@ $(am__append_7) -lpthread
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
@@ -409,6 +415,7 @@ abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_CC = @ac_ct_CC@
+ac_ct_CXX = @ac_ct_CXX@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -446,6 +453,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -459,23 +467,25 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 pkginclude_HEADERS = protocol_binary.h
-BUILT_SOURCES = $(am__append_9)
-testapp_SOURCES = testapp.c util.c util.h $(am__append_2)
-timedrun_SOURCES = timedrun.c
-memcached_SOURCES = memcached.c memcached.h hash.c hash.h \
-	jenkins_hash.c jenkins_hash.h murmur3_hash.c murmur3_hash.h \
-	slabs.c slabs.h items.c items.h assoc.c assoc.h thread.c \
-	daemon.c stats.c stats.h util.c util.h trace.h cache.h \
-	sasl_defs.h $(am__append_1) $(am__append_3) $(am__append_4) \
-	$(am__append_5) $(am__append_7)
+BUILT_SOURCES = $(am__append_8)
+testapp_SOURCES = testapp.cpp util.cpp util.h $(am__append_2)
+timedrun_SOURCES = timedrun.cpp
+sizes_SOURCES = sizes.h sizes.cpp
+memcached_SOURCES = memcached.cpp memcached.h hash.cpp hash.h \
+	jenkins_hash.cpp jenkins_hash.h murmur3_hash.cpp \
+	murmur3_hash.h slabs.cpp slabs.h items.cpp items.h assoc.cpp \
+	assoc.h thread.cpp daemon.cpp stats.cpp stats.h util.cpp \
+	util.h trace.h cache.h sasl_defs.h $(am__append_1) \
+	$(am__append_3) $(am__append_4) $(am__append_5)
+memcached_LDFLAGS = 
+memcached_LDADD = $(am__append_10)
+memcached_DEPENDENCIES = $(am__append_11)
 memcached_debug_SOURCES = $(memcached_SOURCES)
 memcached_CPPFLAGS = -DNDEBUG
-memcached_debug_LDADD = @PROFILER_LDFLAGS@ $(am__append_13)
+memcached_debug_LDADD = @PROFILER_LDFLAGS@ $(am__append_12)
 memcached_debug_CFLAGS = @PROFILER_FLAGS@
-memcached_LDADD = $(am__append_11)
-memcached_DEPENDENCIES = $(am__append_12)
-memcached_debug_DEPENDENCIES = $(am__append_14)
-CLEANFILES = $(am__append_10) $(am__append_15)
+memcached_debug_DEPENDENCIES = $(am__append_13)
+CLEANFILES = $(am__append_9) $(am__append_14)
 SUBDIRS = doc
 DIST_DIRS = scripts
 EXTRA_DIST = doc scripts t memcached.spec memcached_dtrace.d version.m4 README.md
@@ -484,22 +494,22 @@ all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
 .SUFFIXES:
-.SUFFIXES: .c .o .obj
+.SUFFIXES: .cpp .o .obj
 am--refresh: Makefile
 	@:
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
-	      echo ' cd $(srcdir) && $(AUTOMAKE) --foreign'; \
-	      $(am__cd) $(srcdir) && $(AUTOMAKE) --foreign \
+	      echo ' cd $(srcdir) && $(AUTOMAKE) --gnu'; \
+	      $(am__cd) $(srcdir) && $(AUTOMAKE) --gnu \
 		&& exit 0; \
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign Makefile
+	  $(AUTOMAKE) --gnu Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -582,23 +592,23 @@ clean-noinstPROGRAMS:
 
 memcached$(EXEEXT): $(memcached_OBJECTS) $(memcached_DEPENDENCIES) $(EXTRA_memcached_DEPENDENCIES) 
 	@rm -f memcached$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(memcached_OBJECTS) $(memcached_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(memcached_LINK) $(memcached_OBJECTS) $(memcached_LDADD) $(LIBS)
 
 memcached-debug$(EXEEXT): $(memcached_debug_OBJECTS) $(memcached_debug_DEPENDENCIES) $(EXTRA_memcached_debug_DEPENDENCIES) 
 	@rm -f memcached-debug$(EXEEXT)
-	$(AM_V_CCLD)$(memcached_debug_LINK) $(memcached_debug_OBJECTS) $(memcached_debug_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(memcached_debug_OBJECTS) $(memcached_debug_LDADD) $(LIBS)
 
 sizes$(EXEEXT): $(sizes_OBJECTS) $(sizes_DEPENDENCIES) $(EXTRA_sizes_DEPENDENCIES) 
 	@rm -f sizes$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sizes_OBJECTS) $(sizes_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(sizes_OBJECTS) $(sizes_LDADD) $(LIBS)
 
 testapp$(EXEEXT): $(testapp_OBJECTS) $(testapp_DEPENDENCIES) $(EXTRA_testapp_DEPENDENCIES) 
 	@rm -f testapp$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(testapp_OBJECTS) $(testapp_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(testapp_OBJECTS) $(testapp_LDADD) $(LIBS)
 
 timedrun$(EXEEXT): $(timedrun_OBJECTS) $(timedrun_DEPENDENCIES) $(EXTRA_timedrun_DEPENDENCIES) 
 	@rm -f timedrun$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(timedrun_OBJECTS) $(timedrun_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(timedrun_OBJECTS) $(timedrun_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -606,595 +616,311 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/assoc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cache.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hashtable.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intset.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/items.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jenkins_hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lf-linkedlist.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-assoc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-cache.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-clht_gc.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-clht_lb_res.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-clht_lf_res.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-clht_util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-daemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-hashtable.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-intset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-items.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-jenkins_hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-lf-linkedlist.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-memcached.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-murmur3_hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-nv_lf_util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-sasl_defs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-slabs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-solaris_priv.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-ssmem.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-stats.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-thread.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-util.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-assoc.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-cache.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-clht_gc.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-clht_lb_res.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-clht_lf_res.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-clht_util.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-daemon.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-hash.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-items.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-jenkins_hash.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-memcached.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-murmur3_hash.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-sasl_defs.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-slabs.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-solaris_priv.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-ssmem.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-stats.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-thread.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached_debug-util.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/murmur3_hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nv_lf_util.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sasl_defs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sizes.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/slabs.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/solaris_priv.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stats.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/testapp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/thread.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timedrun.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/util.Po@am__quote@
 
-.c.o:
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ $<
-
-.c.obj:
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
-
-memcached-memcached.o: memcached.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-memcached.o -MD -MP -MF $(DEPDIR)/memcached-memcached.Tpo -c -o memcached-memcached.o `test -f 'memcached.c' || echo '$(srcdir)/'`memcached.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-memcached.Tpo $(DEPDIR)/memcached-memcached.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='memcached.c' object='memcached-memcached.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-memcached.o `test -f 'memcached.c' || echo '$(srcdir)/'`memcached.c
-
-memcached-memcached.obj: memcached.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-memcached.obj -MD -MP -MF $(DEPDIR)/memcached-memcached.Tpo -c -o memcached-memcached.obj `if test -f 'memcached.c'; then $(CYGPATH_W) 'memcached.c'; else $(CYGPATH_W) '$(srcdir)/memcached.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-memcached.Tpo $(DEPDIR)/memcached-memcached.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='memcached.c' object='memcached-memcached.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-memcached.obj `if test -f 'memcached.c'; then $(CYGPATH_W) 'memcached.c'; else $(CYGPATH_W) '$(srcdir)/memcached.c'; fi`
-
-memcached-hash.o: hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-hash.o -MD -MP -MF $(DEPDIR)/memcached-hash.Tpo -c -o memcached-hash.o `test -f 'hash.c' || echo '$(srcdir)/'`hash.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-hash.Tpo $(DEPDIR)/memcached-hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='hash.c' object='memcached-hash.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-hash.o `test -f 'hash.c' || echo '$(srcdir)/'`hash.c
-
-memcached-hash.obj: hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-hash.obj -MD -MP -MF $(DEPDIR)/memcached-hash.Tpo -c -o memcached-hash.obj `if test -f 'hash.c'; then $(CYGPATH_W) 'hash.c'; else $(CYGPATH_W) '$(srcdir)/hash.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-hash.Tpo $(DEPDIR)/memcached-hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='hash.c' object='memcached-hash.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-hash.obj `if test -f 'hash.c'; then $(CYGPATH_W) 'hash.c'; else $(CYGPATH_W) '$(srcdir)/hash.c'; fi`
-
-memcached-jenkins_hash.o: jenkins_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-jenkins_hash.o -MD -MP -MF $(DEPDIR)/memcached-jenkins_hash.Tpo -c -o memcached-jenkins_hash.o `test -f 'jenkins_hash.c' || echo '$(srcdir)/'`jenkins_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-jenkins_hash.Tpo $(DEPDIR)/memcached-jenkins_hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='jenkins_hash.c' object='memcached-jenkins_hash.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-jenkins_hash.o `test -f 'jenkins_hash.c' || echo '$(srcdir)/'`jenkins_hash.c
-
-memcached-jenkins_hash.obj: jenkins_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-jenkins_hash.obj -MD -MP -MF $(DEPDIR)/memcached-jenkins_hash.Tpo -c -o memcached-jenkins_hash.obj `if test -f 'jenkins_hash.c'; then $(CYGPATH_W) 'jenkins_hash.c'; else $(CYGPATH_W) '$(srcdir)/jenkins_hash.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-jenkins_hash.Tpo $(DEPDIR)/memcached-jenkins_hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='jenkins_hash.c' object='memcached-jenkins_hash.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-jenkins_hash.obj `if test -f 'jenkins_hash.c'; then $(CYGPATH_W) 'jenkins_hash.c'; else $(CYGPATH_W) '$(srcdir)/jenkins_hash.c'; fi`
-
-memcached-murmur3_hash.o: murmur3_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-murmur3_hash.o -MD -MP -MF $(DEPDIR)/memcached-murmur3_hash.Tpo -c -o memcached-murmur3_hash.o `test -f 'murmur3_hash.c' || echo '$(srcdir)/'`murmur3_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-murmur3_hash.Tpo $(DEPDIR)/memcached-murmur3_hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='murmur3_hash.c' object='memcached-murmur3_hash.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-murmur3_hash.o `test -f 'murmur3_hash.c' || echo '$(srcdir)/'`murmur3_hash.c
-
-memcached-murmur3_hash.obj: murmur3_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-murmur3_hash.obj -MD -MP -MF $(DEPDIR)/memcached-murmur3_hash.Tpo -c -o memcached-murmur3_hash.obj `if test -f 'murmur3_hash.c'; then $(CYGPATH_W) 'murmur3_hash.c'; else $(CYGPATH_W) '$(srcdir)/murmur3_hash.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-murmur3_hash.Tpo $(DEPDIR)/memcached-murmur3_hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='murmur3_hash.c' object='memcached-murmur3_hash.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-murmur3_hash.obj `if test -f 'murmur3_hash.c'; then $(CYGPATH_W) 'murmur3_hash.c'; else $(CYGPATH_W) '$(srcdir)/murmur3_hash.c'; fi`
-
-memcached-slabs.o: slabs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-slabs.o -MD -MP -MF $(DEPDIR)/memcached-slabs.Tpo -c -o memcached-slabs.o `test -f 'slabs.c' || echo '$(srcdir)/'`slabs.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-slabs.Tpo $(DEPDIR)/memcached-slabs.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='slabs.c' object='memcached-slabs.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-slabs.o `test -f 'slabs.c' || echo '$(srcdir)/'`slabs.c
-
-memcached-slabs.obj: slabs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-slabs.obj -MD -MP -MF $(DEPDIR)/memcached-slabs.Tpo -c -o memcached-slabs.obj `if test -f 'slabs.c'; then $(CYGPATH_W) 'slabs.c'; else $(CYGPATH_W) '$(srcdir)/slabs.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-slabs.Tpo $(DEPDIR)/memcached-slabs.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='slabs.c' object='memcached-slabs.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-slabs.obj `if test -f 'slabs.c'; then $(CYGPATH_W) 'slabs.c'; else $(CYGPATH_W) '$(srcdir)/slabs.c'; fi`
-
-memcached-items.o: items.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-items.o -MD -MP -MF $(DEPDIR)/memcached-items.Tpo -c -o memcached-items.o `test -f 'items.c' || echo '$(srcdir)/'`items.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-items.Tpo $(DEPDIR)/memcached-items.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='items.c' object='memcached-items.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-items.o `test -f 'items.c' || echo '$(srcdir)/'`items.c
-
-memcached-items.obj: items.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-items.obj -MD -MP -MF $(DEPDIR)/memcached-items.Tpo -c -o memcached-items.obj `if test -f 'items.c'; then $(CYGPATH_W) 'items.c'; else $(CYGPATH_W) '$(srcdir)/items.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-items.Tpo $(DEPDIR)/memcached-items.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='items.c' object='memcached-items.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-items.obj `if test -f 'items.c'; then $(CYGPATH_W) 'items.c'; else $(CYGPATH_W) '$(srcdir)/items.c'; fi`
-
-memcached-assoc.o: assoc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-assoc.o -MD -MP -MF $(DEPDIR)/memcached-assoc.Tpo -c -o memcached-assoc.o `test -f 'assoc.c' || echo '$(srcdir)/'`assoc.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-assoc.Tpo $(DEPDIR)/memcached-assoc.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='assoc.c' object='memcached-assoc.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-assoc.o `test -f 'assoc.c' || echo '$(srcdir)/'`assoc.c
-
-memcached-assoc.obj: assoc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-assoc.obj -MD -MP -MF $(DEPDIR)/memcached-assoc.Tpo -c -o memcached-assoc.obj `if test -f 'assoc.c'; then $(CYGPATH_W) 'assoc.c'; else $(CYGPATH_W) '$(srcdir)/assoc.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-assoc.Tpo $(DEPDIR)/memcached-assoc.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='assoc.c' object='memcached-assoc.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-assoc.obj `if test -f 'assoc.c'; then $(CYGPATH_W) 'assoc.c'; else $(CYGPATH_W) '$(srcdir)/assoc.c'; fi`
-
-memcached-thread.o: thread.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-thread.o -MD -MP -MF $(DEPDIR)/memcached-thread.Tpo -c -o memcached-thread.o `test -f 'thread.c' || echo '$(srcdir)/'`thread.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-thread.Tpo $(DEPDIR)/memcached-thread.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='thread.c' object='memcached-thread.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-thread.o `test -f 'thread.c' || echo '$(srcdir)/'`thread.c
-
-memcached-thread.obj: thread.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-thread.obj -MD -MP -MF $(DEPDIR)/memcached-thread.Tpo -c -o memcached-thread.obj `if test -f 'thread.c'; then $(CYGPATH_W) 'thread.c'; else $(CYGPATH_W) '$(srcdir)/thread.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-thread.Tpo $(DEPDIR)/memcached-thread.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='thread.c' object='memcached-thread.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-thread.obj `if test -f 'thread.c'; then $(CYGPATH_W) 'thread.c'; else $(CYGPATH_W) '$(srcdir)/thread.c'; fi`
-
-memcached-daemon.o: daemon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-daemon.o -MD -MP -MF $(DEPDIR)/memcached-daemon.Tpo -c -o memcached-daemon.o `test -f 'daemon.c' || echo '$(srcdir)/'`daemon.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-daemon.Tpo $(DEPDIR)/memcached-daemon.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='daemon.c' object='memcached-daemon.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-daemon.o `test -f 'daemon.c' || echo '$(srcdir)/'`daemon.c
-
-memcached-daemon.obj: daemon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-daemon.obj -MD -MP -MF $(DEPDIR)/memcached-daemon.Tpo -c -o memcached-daemon.obj `if test -f 'daemon.c'; then $(CYGPATH_W) 'daemon.c'; else $(CYGPATH_W) '$(srcdir)/daemon.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-daemon.Tpo $(DEPDIR)/memcached-daemon.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='daemon.c' object='memcached-daemon.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-daemon.obj `if test -f 'daemon.c'; then $(CYGPATH_W) 'daemon.c'; else $(CYGPATH_W) '$(srcdir)/daemon.c'; fi`
-
-memcached-stats.o: stats.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-stats.o -MD -MP -MF $(DEPDIR)/memcached-stats.Tpo -c -o memcached-stats.o `test -f 'stats.c' || echo '$(srcdir)/'`stats.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-stats.Tpo $(DEPDIR)/memcached-stats.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stats.c' object='memcached-stats.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-stats.o `test -f 'stats.c' || echo '$(srcdir)/'`stats.c
-
-memcached-stats.obj: stats.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-stats.obj -MD -MP -MF $(DEPDIR)/memcached-stats.Tpo -c -o memcached-stats.obj `if test -f 'stats.c'; then $(CYGPATH_W) 'stats.c'; else $(CYGPATH_W) '$(srcdir)/stats.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-stats.Tpo $(DEPDIR)/memcached-stats.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stats.c' object='memcached-stats.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-stats.obj `if test -f 'stats.c'; then $(CYGPATH_W) 'stats.c'; else $(CYGPATH_W) '$(srcdir)/stats.c'; fi`
-
-memcached-util.o: util.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-util.o -MD -MP -MF $(DEPDIR)/memcached-util.Tpo -c -o memcached-util.o `test -f 'util.c' || echo '$(srcdir)/'`util.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-util.Tpo $(DEPDIR)/memcached-util.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='util.c' object='memcached-util.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-util.o `test -f 'util.c' || echo '$(srcdir)/'`util.c
-
-memcached-util.obj: util.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-util.obj -MD -MP -MF $(DEPDIR)/memcached-util.Tpo -c -o memcached-util.obj `if test -f 'util.c'; then $(CYGPATH_W) 'util.c'; else $(CYGPATH_W) '$(srcdir)/util.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-util.Tpo $(DEPDIR)/memcached-util.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='util.c' object='memcached-util.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-util.obj `if test -f 'util.c'; then $(CYGPATH_W) 'util.c'; else $(CYGPATH_W) '$(srcdir)/util.c'; fi`
-
-memcached-cache.o: cache.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-cache.o -MD -MP -MF $(DEPDIR)/memcached-cache.Tpo -c -o memcached-cache.o `test -f 'cache.c' || echo '$(srcdir)/'`cache.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-cache.Tpo $(DEPDIR)/memcached-cache.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='cache.c' object='memcached-cache.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-cache.o `test -f 'cache.c' || echo '$(srcdir)/'`cache.c
-
-memcached-cache.obj: cache.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-cache.obj -MD -MP -MF $(DEPDIR)/memcached-cache.Tpo -c -o memcached-cache.obj `if test -f 'cache.c'; then $(CYGPATH_W) 'cache.c'; else $(CYGPATH_W) '$(srcdir)/cache.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-cache.Tpo $(DEPDIR)/memcached-cache.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='cache.c' object='memcached-cache.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-cache.obj `if test -f 'cache.c'; then $(CYGPATH_W) 'cache.c'; else $(CYGPATH_W) '$(srcdir)/cache.c'; fi`
-
-memcached-solaris_priv.o: solaris_priv.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-solaris_priv.o -MD -MP -MF $(DEPDIR)/memcached-solaris_priv.Tpo -c -o memcached-solaris_priv.o `test -f 'solaris_priv.c' || echo '$(srcdir)/'`solaris_priv.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-solaris_priv.Tpo $(DEPDIR)/memcached-solaris_priv.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='solaris_priv.c' object='memcached-solaris_priv.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-solaris_priv.o `test -f 'solaris_priv.c' || echo '$(srcdir)/'`solaris_priv.c
-
-memcached-solaris_priv.obj: solaris_priv.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-solaris_priv.obj -MD -MP -MF $(DEPDIR)/memcached-solaris_priv.Tpo -c -o memcached-solaris_priv.obj `if test -f 'solaris_priv.c'; then $(CYGPATH_W) 'solaris_priv.c'; else $(CYGPATH_W) '$(srcdir)/solaris_priv.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-solaris_priv.Tpo $(DEPDIR)/memcached-solaris_priv.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='solaris_priv.c' object='memcached-solaris_priv.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-solaris_priv.obj `if test -f 'solaris_priv.c'; then $(CYGPATH_W) 'solaris_priv.c'; else $(CYGPATH_W) '$(srcdir)/solaris_priv.c'; fi`
-
-memcached-sasl_defs.o: sasl_defs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-sasl_defs.o -MD -MP -MF $(DEPDIR)/memcached-sasl_defs.Tpo -c -o memcached-sasl_defs.o `test -f 'sasl_defs.c' || echo '$(srcdir)/'`sasl_defs.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-sasl_defs.Tpo $(DEPDIR)/memcached-sasl_defs.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sasl_defs.c' object='memcached-sasl_defs.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-sasl_defs.o `test -f 'sasl_defs.c' || echo '$(srcdir)/'`sasl_defs.c
-
-memcached-sasl_defs.obj: sasl_defs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-sasl_defs.obj -MD -MP -MF $(DEPDIR)/memcached-sasl_defs.Tpo -c -o memcached-sasl_defs.obj `if test -f 'sasl_defs.c'; then $(CYGPATH_W) 'sasl_defs.c'; else $(CYGPATH_W) '$(srcdir)/sasl_defs.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-sasl_defs.Tpo $(DEPDIR)/memcached-sasl_defs.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sasl_defs.c' object='memcached-sasl_defs.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-sasl_defs.obj `if test -f 'sasl_defs.c'; then $(CYGPATH_W) 'sasl_defs.c'; else $(CYGPATH_W) '$(srcdir)/sasl_defs.c'; fi`
-
-memcached-ssmem.o: ssmem.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-ssmem.o -MD -MP -MF $(DEPDIR)/memcached-ssmem.Tpo -c -o memcached-ssmem.o `test -f 'ssmem.c' || echo '$(srcdir)/'`ssmem.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-ssmem.Tpo $(DEPDIR)/memcached-ssmem.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ssmem.c' object='memcached-ssmem.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-ssmem.o `test -f 'ssmem.c' || echo '$(srcdir)/'`ssmem.c
-
-memcached-ssmem.obj: ssmem.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-ssmem.obj -MD -MP -MF $(DEPDIR)/memcached-ssmem.Tpo -c -o memcached-ssmem.obj `if test -f 'ssmem.c'; then $(CYGPATH_W) 'ssmem.c'; else $(CYGPATH_W) '$(srcdir)/ssmem.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-ssmem.Tpo $(DEPDIR)/memcached-ssmem.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ssmem.c' object='memcached-ssmem.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-ssmem.obj `if test -f 'ssmem.c'; then $(CYGPATH_W) 'ssmem.c'; else $(CYGPATH_W) '$(srcdir)/ssmem.c'; fi`
-
-memcached-clht_util.o: clht_util.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-clht_util.o -MD -MP -MF $(DEPDIR)/memcached-clht_util.Tpo -c -o memcached-clht_util.o `test -f 'clht_util.c' || echo '$(srcdir)/'`clht_util.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-clht_util.Tpo $(DEPDIR)/memcached-clht_util.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_util.c' object='memcached-clht_util.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-clht_util.o `test -f 'clht_util.c' || echo '$(srcdir)/'`clht_util.c
-
-memcached-clht_util.obj: clht_util.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-clht_util.obj -MD -MP -MF $(DEPDIR)/memcached-clht_util.Tpo -c -o memcached-clht_util.obj `if test -f 'clht_util.c'; then $(CYGPATH_W) 'clht_util.c'; else $(CYGPATH_W) '$(srcdir)/clht_util.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-clht_util.Tpo $(DEPDIR)/memcached-clht_util.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_util.c' object='memcached-clht_util.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-clht_util.obj `if test -f 'clht_util.c'; then $(CYGPATH_W) 'clht_util.c'; else $(CYGPATH_W) '$(srcdir)/clht_util.c'; fi`
-
-memcached-clht_lb_res.o: clht_lb_res.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-clht_lb_res.o -MD -MP -MF $(DEPDIR)/memcached-clht_lb_res.Tpo -c -o memcached-clht_lb_res.o `test -f 'clht_lb_res.c' || echo '$(srcdir)/'`clht_lb_res.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-clht_lb_res.Tpo $(DEPDIR)/memcached-clht_lb_res.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_lb_res.c' object='memcached-clht_lb_res.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-clht_lb_res.o `test -f 'clht_lb_res.c' || echo '$(srcdir)/'`clht_lb_res.c
-
-memcached-clht_lb_res.obj: clht_lb_res.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-clht_lb_res.obj -MD -MP -MF $(DEPDIR)/memcached-clht_lb_res.Tpo -c -o memcached-clht_lb_res.obj `if test -f 'clht_lb_res.c'; then $(CYGPATH_W) 'clht_lb_res.c'; else $(CYGPATH_W) '$(srcdir)/clht_lb_res.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-clht_lb_res.Tpo $(DEPDIR)/memcached-clht_lb_res.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_lb_res.c' object='memcached-clht_lb_res.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-clht_lb_res.obj `if test -f 'clht_lb_res.c'; then $(CYGPATH_W) 'clht_lb_res.c'; else $(CYGPATH_W) '$(srcdir)/clht_lb_res.c'; fi`
-
-memcached-clht_gc.o: clht_gc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-clht_gc.o -MD -MP -MF $(DEPDIR)/memcached-clht_gc.Tpo -c -o memcached-clht_gc.o `test -f 'clht_gc.c' || echo '$(srcdir)/'`clht_gc.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-clht_gc.Tpo $(DEPDIR)/memcached-clht_gc.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_gc.c' object='memcached-clht_gc.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-clht_gc.o `test -f 'clht_gc.c' || echo '$(srcdir)/'`clht_gc.c
-
-memcached-clht_gc.obj: clht_gc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-clht_gc.obj -MD -MP -MF $(DEPDIR)/memcached-clht_gc.Tpo -c -o memcached-clht_gc.obj `if test -f 'clht_gc.c'; then $(CYGPATH_W) 'clht_gc.c'; else $(CYGPATH_W) '$(srcdir)/clht_gc.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-clht_gc.Tpo $(DEPDIR)/memcached-clht_gc.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_gc.c' object='memcached-clht_gc.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-clht_gc.obj `if test -f 'clht_gc.c'; then $(CYGPATH_W) 'clht_gc.c'; else $(CYGPATH_W) '$(srcdir)/clht_gc.c'; fi`
-
-memcached-clht_lf_res.o: clht_lf_res.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-clht_lf_res.o -MD -MP -MF $(DEPDIR)/memcached-clht_lf_res.Tpo -c -o memcached-clht_lf_res.o `test -f 'clht_lf_res.c' || echo '$(srcdir)/'`clht_lf_res.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-clht_lf_res.Tpo $(DEPDIR)/memcached-clht_lf_res.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_lf_res.c' object='memcached-clht_lf_res.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-clht_lf_res.o `test -f 'clht_lf_res.c' || echo '$(srcdir)/'`clht_lf_res.c
-
-memcached-clht_lf_res.obj: clht_lf_res.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT memcached-clht_lf_res.obj -MD -MP -MF $(DEPDIR)/memcached-clht_lf_res.Tpo -c -o memcached-clht_lf_res.obj `if test -f 'clht_lf_res.c'; then $(CYGPATH_W) 'clht_lf_res.c'; else $(CYGPATH_W) '$(srcdir)/clht_lf_res.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-clht_lf_res.Tpo $(DEPDIR)/memcached-clht_lf_res.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_lf_res.c' object='memcached-clht_lf_res.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o memcached-clht_lf_res.obj `if test -f 'clht_lf_res.c'; then $(CYGPATH_W) 'clht_lf_res.c'; else $(CYGPATH_W) '$(srcdir)/clht_lf_res.c'; fi`
-
-memcached_debug-memcached.o: memcached.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-memcached.o -MD -MP -MF $(DEPDIR)/memcached_debug-memcached.Tpo -c -o memcached_debug-memcached.o `test -f 'memcached.c' || echo '$(srcdir)/'`memcached.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-memcached.Tpo $(DEPDIR)/memcached_debug-memcached.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='memcached.c' object='memcached_debug-memcached.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-memcached.o `test -f 'memcached.c' || echo '$(srcdir)/'`memcached.c
-
-memcached_debug-memcached.obj: memcached.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-memcached.obj -MD -MP -MF $(DEPDIR)/memcached_debug-memcached.Tpo -c -o memcached_debug-memcached.obj `if test -f 'memcached.c'; then $(CYGPATH_W) 'memcached.c'; else $(CYGPATH_W) '$(srcdir)/memcached.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-memcached.Tpo $(DEPDIR)/memcached_debug-memcached.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='memcached.c' object='memcached_debug-memcached.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-memcached.obj `if test -f 'memcached.c'; then $(CYGPATH_W) 'memcached.c'; else $(CYGPATH_W) '$(srcdir)/memcached.c'; fi`
-
-memcached_debug-hash.o: hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-hash.o -MD -MP -MF $(DEPDIR)/memcached_debug-hash.Tpo -c -o memcached_debug-hash.o `test -f 'hash.c' || echo '$(srcdir)/'`hash.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-hash.Tpo $(DEPDIR)/memcached_debug-hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='hash.c' object='memcached_debug-hash.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-hash.o `test -f 'hash.c' || echo '$(srcdir)/'`hash.c
-
-memcached_debug-hash.obj: hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-hash.obj -MD -MP -MF $(DEPDIR)/memcached_debug-hash.Tpo -c -o memcached_debug-hash.obj `if test -f 'hash.c'; then $(CYGPATH_W) 'hash.c'; else $(CYGPATH_W) '$(srcdir)/hash.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-hash.Tpo $(DEPDIR)/memcached_debug-hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='hash.c' object='memcached_debug-hash.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-hash.obj `if test -f 'hash.c'; then $(CYGPATH_W) 'hash.c'; else $(CYGPATH_W) '$(srcdir)/hash.c'; fi`
-
-memcached_debug-jenkins_hash.o: jenkins_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-jenkins_hash.o -MD -MP -MF $(DEPDIR)/memcached_debug-jenkins_hash.Tpo -c -o memcached_debug-jenkins_hash.o `test -f 'jenkins_hash.c' || echo '$(srcdir)/'`jenkins_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-jenkins_hash.Tpo $(DEPDIR)/memcached_debug-jenkins_hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='jenkins_hash.c' object='memcached_debug-jenkins_hash.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-jenkins_hash.o `test -f 'jenkins_hash.c' || echo '$(srcdir)/'`jenkins_hash.c
-
-memcached_debug-jenkins_hash.obj: jenkins_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-jenkins_hash.obj -MD -MP -MF $(DEPDIR)/memcached_debug-jenkins_hash.Tpo -c -o memcached_debug-jenkins_hash.obj `if test -f 'jenkins_hash.c'; then $(CYGPATH_W) 'jenkins_hash.c'; else $(CYGPATH_W) '$(srcdir)/jenkins_hash.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-jenkins_hash.Tpo $(DEPDIR)/memcached_debug-jenkins_hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='jenkins_hash.c' object='memcached_debug-jenkins_hash.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-jenkins_hash.obj `if test -f 'jenkins_hash.c'; then $(CYGPATH_W) 'jenkins_hash.c'; else $(CYGPATH_W) '$(srcdir)/jenkins_hash.c'; fi`
-
-memcached_debug-murmur3_hash.o: murmur3_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-murmur3_hash.o -MD -MP -MF $(DEPDIR)/memcached_debug-murmur3_hash.Tpo -c -o memcached_debug-murmur3_hash.o `test -f 'murmur3_hash.c' || echo '$(srcdir)/'`murmur3_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-murmur3_hash.Tpo $(DEPDIR)/memcached_debug-murmur3_hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='murmur3_hash.c' object='memcached_debug-murmur3_hash.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-murmur3_hash.o `test -f 'murmur3_hash.c' || echo '$(srcdir)/'`murmur3_hash.c
-
-memcached_debug-murmur3_hash.obj: murmur3_hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-murmur3_hash.obj -MD -MP -MF $(DEPDIR)/memcached_debug-murmur3_hash.Tpo -c -o memcached_debug-murmur3_hash.obj `if test -f 'murmur3_hash.c'; then $(CYGPATH_W) 'murmur3_hash.c'; else $(CYGPATH_W) '$(srcdir)/murmur3_hash.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-murmur3_hash.Tpo $(DEPDIR)/memcached_debug-murmur3_hash.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='murmur3_hash.c' object='memcached_debug-murmur3_hash.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-murmur3_hash.obj `if test -f 'murmur3_hash.c'; then $(CYGPATH_W) 'murmur3_hash.c'; else $(CYGPATH_W) '$(srcdir)/murmur3_hash.c'; fi`
-
-memcached_debug-slabs.o: slabs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-slabs.o -MD -MP -MF $(DEPDIR)/memcached_debug-slabs.Tpo -c -o memcached_debug-slabs.o `test -f 'slabs.c' || echo '$(srcdir)/'`slabs.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-slabs.Tpo $(DEPDIR)/memcached_debug-slabs.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='slabs.c' object='memcached_debug-slabs.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-slabs.o `test -f 'slabs.c' || echo '$(srcdir)/'`slabs.c
-
-memcached_debug-slabs.obj: slabs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-slabs.obj -MD -MP -MF $(DEPDIR)/memcached_debug-slabs.Tpo -c -o memcached_debug-slabs.obj `if test -f 'slabs.c'; then $(CYGPATH_W) 'slabs.c'; else $(CYGPATH_W) '$(srcdir)/slabs.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-slabs.Tpo $(DEPDIR)/memcached_debug-slabs.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='slabs.c' object='memcached_debug-slabs.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-slabs.obj `if test -f 'slabs.c'; then $(CYGPATH_W) 'slabs.c'; else $(CYGPATH_W) '$(srcdir)/slabs.c'; fi`
-
-memcached_debug-items.o: items.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-items.o -MD -MP -MF $(DEPDIR)/memcached_debug-items.Tpo -c -o memcached_debug-items.o `test -f 'items.c' || echo '$(srcdir)/'`items.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-items.Tpo $(DEPDIR)/memcached_debug-items.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='items.c' object='memcached_debug-items.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-items.o `test -f 'items.c' || echo '$(srcdir)/'`items.c
-
-memcached_debug-items.obj: items.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-items.obj -MD -MP -MF $(DEPDIR)/memcached_debug-items.Tpo -c -o memcached_debug-items.obj `if test -f 'items.c'; then $(CYGPATH_W) 'items.c'; else $(CYGPATH_W) '$(srcdir)/items.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-items.Tpo $(DEPDIR)/memcached_debug-items.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='items.c' object='memcached_debug-items.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-items.obj `if test -f 'items.c'; then $(CYGPATH_W) 'items.c'; else $(CYGPATH_W) '$(srcdir)/items.c'; fi`
-
-memcached_debug-assoc.o: assoc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-assoc.o -MD -MP -MF $(DEPDIR)/memcached_debug-assoc.Tpo -c -o memcached_debug-assoc.o `test -f 'assoc.c' || echo '$(srcdir)/'`assoc.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-assoc.Tpo $(DEPDIR)/memcached_debug-assoc.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='assoc.c' object='memcached_debug-assoc.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-assoc.o `test -f 'assoc.c' || echo '$(srcdir)/'`assoc.c
-
-memcached_debug-assoc.obj: assoc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-assoc.obj -MD -MP -MF $(DEPDIR)/memcached_debug-assoc.Tpo -c -o memcached_debug-assoc.obj `if test -f 'assoc.c'; then $(CYGPATH_W) 'assoc.c'; else $(CYGPATH_W) '$(srcdir)/assoc.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-assoc.Tpo $(DEPDIR)/memcached_debug-assoc.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='assoc.c' object='memcached_debug-assoc.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-assoc.obj `if test -f 'assoc.c'; then $(CYGPATH_W) 'assoc.c'; else $(CYGPATH_W) '$(srcdir)/assoc.c'; fi`
-
-memcached_debug-thread.o: thread.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-thread.o -MD -MP -MF $(DEPDIR)/memcached_debug-thread.Tpo -c -o memcached_debug-thread.o `test -f 'thread.c' || echo '$(srcdir)/'`thread.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-thread.Tpo $(DEPDIR)/memcached_debug-thread.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='thread.c' object='memcached_debug-thread.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-thread.o `test -f 'thread.c' || echo '$(srcdir)/'`thread.c
-
-memcached_debug-thread.obj: thread.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-thread.obj -MD -MP -MF $(DEPDIR)/memcached_debug-thread.Tpo -c -o memcached_debug-thread.obj `if test -f 'thread.c'; then $(CYGPATH_W) 'thread.c'; else $(CYGPATH_W) '$(srcdir)/thread.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-thread.Tpo $(DEPDIR)/memcached_debug-thread.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='thread.c' object='memcached_debug-thread.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-thread.obj `if test -f 'thread.c'; then $(CYGPATH_W) 'thread.c'; else $(CYGPATH_W) '$(srcdir)/thread.c'; fi`
-
-memcached_debug-daemon.o: daemon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-daemon.o -MD -MP -MF $(DEPDIR)/memcached_debug-daemon.Tpo -c -o memcached_debug-daemon.o `test -f 'daemon.c' || echo '$(srcdir)/'`daemon.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-daemon.Tpo $(DEPDIR)/memcached_debug-daemon.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='daemon.c' object='memcached_debug-daemon.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-daemon.o `test -f 'daemon.c' || echo '$(srcdir)/'`daemon.c
-
-memcached_debug-daemon.obj: daemon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-daemon.obj -MD -MP -MF $(DEPDIR)/memcached_debug-daemon.Tpo -c -o memcached_debug-daemon.obj `if test -f 'daemon.c'; then $(CYGPATH_W) 'daemon.c'; else $(CYGPATH_W) '$(srcdir)/daemon.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-daemon.Tpo $(DEPDIR)/memcached_debug-daemon.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='daemon.c' object='memcached_debug-daemon.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-daemon.obj `if test -f 'daemon.c'; then $(CYGPATH_W) 'daemon.c'; else $(CYGPATH_W) '$(srcdir)/daemon.c'; fi`
-
-memcached_debug-stats.o: stats.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-stats.o -MD -MP -MF $(DEPDIR)/memcached_debug-stats.Tpo -c -o memcached_debug-stats.o `test -f 'stats.c' || echo '$(srcdir)/'`stats.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-stats.Tpo $(DEPDIR)/memcached_debug-stats.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stats.c' object='memcached_debug-stats.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-stats.o `test -f 'stats.c' || echo '$(srcdir)/'`stats.c
-
-memcached_debug-stats.obj: stats.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-stats.obj -MD -MP -MF $(DEPDIR)/memcached_debug-stats.Tpo -c -o memcached_debug-stats.obj `if test -f 'stats.c'; then $(CYGPATH_W) 'stats.c'; else $(CYGPATH_W) '$(srcdir)/stats.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-stats.Tpo $(DEPDIR)/memcached_debug-stats.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stats.c' object='memcached_debug-stats.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-stats.obj `if test -f 'stats.c'; then $(CYGPATH_W) 'stats.c'; else $(CYGPATH_W) '$(srcdir)/stats.c'; fi`
-
-memcached_debug-util.o: util.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-util.o -MD -MP -MF $(DEPDIR)/memcached_debug-util.Tpo -c -o memcached_debug-util.o `test -f 'util.c' || echo '$(srcdir)/'`util.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-util.Tpo $(DEPDIR)/memcached_debug-util.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='util.c' object='memcached_debug-util.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-util.o `test -f 'util.c' || echo '$(srcdir)/'`util.c
-
-memcached_debug-util.obj: util.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-util.obj -MD -MP -MF $(DEPDIR)/memcached_debug-util.Tpo -c -o memcached_debug-util.obj `if test -f 'util.c'; then $(CYGPATH_W) 'util.c'; else $(CYGPATH_W) '$(srcdir)/util.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-util.Tpo $(DEPDIR)/memcached_debug-util.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='util.c' object='memcached_debug-util.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-util.obj `if test -f 'util.c'; then $(CYGPATH_W) 'util.c'; else $(CYGPATH_W) '$(srcdir)/util.c'; fi`
-
-memcached_debug-cache.o: cache.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-cache.o -MD -MP -MF $(DEPDIR)/memcached_debug-cache.Tpo -c -o memcached_debug-cache.o `test -f 'cache.c' || echo '$(srcdir)/'`cache.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-cache.Tpo $(DEPDIR)/memcached_debug-cache.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='cache.c' object='memcached_debug-cache.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-cache.o `test -f 'cache.c' || echo '$(srcdir)/'`cache.c
-
-memcached_debug-cache.obj: cache.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-cache.obj -MD -MP -MF $(DEPDIR)/memcached_debug-cache.Tpo -c -o memcached_debug-cache.obj `if test -f 'cache.c'; then $(CYGPATH_W) 'cache.c'; else $(CYGPATH_W) '$(srcdir)/cache.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-cache.Tpo $(DEPDIR)/memcached_debug-cache.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='cache.c' object='memcached_debug-cache.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-cache.obj `if test -f 'cache.c'; then $(CYGPATH_W) 'cache.c'; else $(CYGPATH_W) '$(srcdir)/cache.c'; fi`
-
-memcached_debug-solaris_priv.o: solaris_priv.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-solaris_priv.o -MD -MP -MF $(DEPDIR)/memcached_debug-solaris_priv.Tpo -c -o memcached_debug-solaris_priv.o `test -f 'solaris_priv.c' || echo '$(srcdir)/'`solaris_priv.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-solaris_priv.Tpo $(DEPDIR)/memcached_debug-solaris_priv.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='solaris_priv.c' object='memcached_debug-solaris_priv.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-solaris_priv.o `test -f 'solaris_priv.c' || echo '$(srcdir)/'`solaris_priv.c
-
-memcached_debug-solaris_priv.obj: solaris_priv.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-solaris_priv.obj -MD -MP -MF $(DEPDIR)/memcached_debug-solaris_priv.Tpo -c -o memcached_debug-solaris_priv.obj `if test -f 'solaris_priv.c'; then $(CYGPATH_W) 'solaris_priv.c'; else $(CYGPATH_W) '$(srcdir)/solaris_priv.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-solaris_priv.Tpo $(DEPDIR)/memcached_debug-solaris_priv.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='solaris_priv.c' object='memcached_debug-solaris_priv.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-solaris_priv.obj `if test -f 'solaris_priv.c'; then $(CYGPATH_W) 'solaris_priv.c'; else $(CYGPATH_W) '$(srcdir)/solaris_priv.c'; fi`
-
-memcached_debug-sasl_defs.o: sasl_defs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-sasl_defs.o -MD -MP -MF $(DEPDIR)/memcached_debug-sasl_defs.Tpo -c -o memcached_debug-sasl_defs.o `test -f 'sasl_defs.c' || echo '$(srcdir)/'`sasl_defs.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-sasl_defs.Tpo $(DEPDIR)/memcached_debug-sasl_defs.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sasl_defs.c' object='memcached_debug-sasl_defs.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-sasl_defs.o `test -f 'sasl_defs.c' || echo '$(srcdir)/'`sasl_defs.c
-
-memcached_debug-sasl_defs.obj: sasl_defs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-sasl_defs.obj -MD -MP -MF $(DEPDIR)/memcached_debug-sasl_defs.Tpo -c -o memcached_debug-sasl_defs.obj `if test -f 'sasl_defs.c'; then $(CYGPATH_W) 'sasl_defs.c'; else $(CYGPATH_W) '$(srcdir)/sasl_defs.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-sasl_defs.Tpo $(DEPDIR)/memcached_debug-sasl_defs.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sasl_defs.c' object='memcached_debug-sasl_defs.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-sasl_defs.obj `if test -f 'sasl_defs.c'; then $(CYGPATH_W) 'sasl_defs.c'; else $(CYGPATH_W) '$(srcdir)/sasl_defs.c'; fi`
-
-memcached_debug-ssmem.o: ssmem.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-ssmem.o -MD -MP -MF $(DEPDIR)/memcached_debug-ssmem.Tpo -c -o memcached_debug-ssmem.o `test -f 'ssmem.c' || echo '$(srcdir)/'`ssmem.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-ssmem.Tpo $(DEPDIR)/memcached_debug-ssmem.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ssmem.c' object='memcached_debug-ssmem.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-ssmem.o `test -f 'ssmem.c' || echo '$(srcdir)/'`ssmem.c
-
-memcached_debug-ssmem.obj: ssmem.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-ssmem.obj -MD -MP -MF $(DEPDIR)/memcached_debug-ssmem.Tpo -c -o memcached_debug-ssmem.obj `if test -f 'ssmem.c'; then $(CYGPATH_W) 'ssmem.c'; else $(CYGPATH_W) '$(srcdir)/ssmem.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-ssmem.Tpo $(DEPDIR)/memcached_debug-ssmem.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ssmem.c' object='memcached_debug-ssmem.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-ssmem.obj `if test -f 'ssmem.c'; then $(CYGPATH_W) 'ssmem.c'; else $(CYGPATH_W) '$(srcdir)/ssmem.c'; fi`
-
-memcached_debug-clht_util.o: clht_util.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-clht_util.o -MD -MP -MF $(DEPDIR)/memcached_debug-clht_util.Tpo -c -o memcached_debug-clht_util.o `test -f 'clht_util.c' || echo '$(srcdir)/'`clht_util.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-clht_util.Tpo $(DEPDIR)/memcached_debug-clht_util.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_util.c' object='memcached_debug-clht_util.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-clht_util.o `test -f 'clht_util.c' || echo '$(srcdir)/'`clht_util.c
-
-memcached_debug-clht_util.obj: clht_util.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-clht_util.obj -MD -MP -MF $(DEPDIR)/memcached_debug-clht_util.Tpo -c -o memcached_debug-clht_util.obj `if test -f 'clht_util.c'; then $(CYGPATH_W) 'clht_util.c'; else $(CYGPATH_W) '$(srcdir)/clht_util.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-clht_util.Tpo $(DEPDIR)/memcached_debug-clht_util.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_util.c' object='memcached_debug-clht_util.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-clht_util.obj `if test -f 'clht_util.c'; then $(CYGPATH_W) 'clht_util.c'; else $(CYGPATH_W) '$(srcdir)/clht_util.c'; fi`
-
-memcached_debug-clht_lb_res.o: clht_lb_res.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-clht_lb_res.o -MD -MP -MF $(DEPDIR)/memcached_debug-clht_lb_res.Tpo -c -o memcached_debug-clht_lb_res.o `test -f 'clht_lb_res.c' || echo '$(srcdir)/'`clht_lb_res.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-clht_lb_res.Tpo $(DEPDIR)/memcached_debug-clht_lb_res.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_lb_res.c' object='memcached_debug-clht_lb_res.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-clht_lb_res.o `test -f 'clht_lb_res.c' || echo '$(srcdir)/'`clht_lb_res.c
-
-memcached_debug-clht_lb_res.obj: clht_lb_res.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-clht_lb_res.obj -MD -MP -MF $(DEPDIR)/memcached_debug-clht_lb_res.Tpo -c -o memcached_debug-clht_lb_res.obj `if test -f 'clht_lb_res.c'; then $(CYGPATH_W) 'clht_lb_res.c'; else $(CYGPATH_W) '$(srcdir)/clht_lb_res.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-clht_lb_res.Tpo $(DEPDIR)/memcached_debug-clht_lb_res.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_lb_res.c' object='memcached_debug-clht_lb_res.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-clht_lb_res.obj `if test -f 'clht_lb_res.c'; then $(CYGPATH_W) 'clht_lb_res.c'; else $(CYGPATH_W) '$(srcdir)/clht_lb_res.c'; fi`
-
-memcached_debug-clht_gc.o: clht_gc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-clht_gc.o -MD -MP -MF $(DEPDIR)/memcached_debug-clht_gc.Tpo -c -o memcached_debug-clht_gc.o `test -f 'clht_gc.c' || echo '$(srcdir)/'`clht_gc.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-clht_gc.Tpo $(DEPDIR)/memcached_debug-clht_gc.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_gc.c' object='memcached_debug-clht_gc.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-clht_gc.o `test -f 'clht_gc.c' || echo '$(srcdir)/'`clht_gc.c
-
-memcached_debug-clht_gc.obj: clht_gc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-clht_gc.obj -MD -MP -MF $(DEPDIR)/memcached_debug-clht_gc.Tpo -c -o memcached_debug-clht_gc.obj `if test -f 'clht_gc.c'; then $(CYGPATH_W) 'clht_gc.c'; else $(CYGPATH_W) '$(srcdir)/clht_gc.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-clht_gc.Tpo $(DEPDIR)/memcached_debug-clht_gc.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_gc.c' object='memcached_debug-clht_gc.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-clht_gc.obj `if test -f 'clht_gc.c'; then $(CYGPATH_W) 'clht_gc.c'; else $(CYGPATH_W) '$(srcdir)/clht_gc.c'; fi`
-
-memcached_debug-clht_lf_res.o: clht_lf_res.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-clht_lf_res.o -MD -MP -MF $(DEPDIR)/memcached_debug-clht_lf_res.Tpo -c -o memcached_debug-clht_lf_res.o `test -f 'clht_lf_res.c' || echo '$(srcdir)/'`clht_lf_res.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-clht_lf_res.Tpo $(DEPDIR)/memcached_debug-clht_lf_res.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_lf_res.c' object='memcached_debug-clht_lf_res.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-clht_lf_res.o `test -f 'clht_lf_res.c' || echo '$(srcdir)/'`clht_lf_res.c
-
-memcached_debug-clht_lf_res.obj: clht_lf_res.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -MT memcached_debug-clht_lf_res.obj -MD -MP -MF $(DEPDIR)/memcached_debug-clht_lf_res.Tpo -c -o memcached_debug-clht_lf_res.obj `if test -f 'clht_lf_res.c'; then $(CYGPATH_W) 'clht_lf_res.c'; else $(CYGPATH_W) '$(srcdir)/clht_lf_res.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached_debug-clht_lf_res.Tpo $(DEPDIR)/memcached_debug-clht_lf_res.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='clht_lf_res.c' object='memcached_debug-clht_lf_res.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(memcached_debug_CFLAGS) $(CFLAGS) -c -o memcached_debug-clht_lf_res.obj `if test -f 'clht_lf_res.c'; then $(CYGPATH_W) 'clht_lf_res.c'; else $(CYGPATH_W) '$(srcdir)/clht_lf_res.c'; fi`
+.cpp.o:
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
+
+.cpp.obj:
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+memcached-memcached.o: memcached.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-memcached.o -MD -MP -MF $(DEPDIR)/memcached-memcached.Tpo -c -o memcached-memcached.o `test -f 'memcached.cpp' || echo '$(srcdir)/'`memcached.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-memcached.Tpo $(DEPDIR)/memcached-memcached.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='memcached.cpp' object='memcached-memcached.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-memcached.o `test -f 'memcached.cpp' || echo '$(srcdir)/'`memcached.cpp
+
+memcached-memcached.obj: memcached.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-memcached.obj -MD -MP -MF $(DEPDIR)/memcached-memcached.Tpo -c -o memcached-memcached.obj `if test -f 'memcached.cpp'; then $(CYGPATH_W) 'memcached.cpp'; else $(CYGPATH_W) '$(srcdir)/memcached.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-memcached.Tpo $(DEPDIR)/memcached-memcached.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='memcached.cpp' object='memcached-memcached.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-memcached.obj `if test -f 'memcached.cpp'; then $(CYGPATH_W) 'memcached.cpp'; else $(CYGPATH_W) '$(srcdir)/memcached.cpp'; fi`
+
+memcached-hash.o: hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-hash.o -MD -MP -MF $(DEPDIR)/memcached-hash.Tpo -c -o memcached-hash.o `test -f 'hash.cpp' || echo '$(srcdir)/'`hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-hash.Tpo $(DEPDIR)/memcached-hash.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='hash.cpp' object='memcached-hash.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-hash.o `test -f 'hash.cpp' || echo '$(srcdir)/'`hash.cpp
+
+memcached-hash.obj: hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-hash.obj -MD -MP -MF $(DEPDIR)/memcached-hash.Tpo -c -o memcached-hash.obj `if test -f 'hash.cpp'; then $(CYGPATH_W) 'hash.cpp'; else $(CYGPATH_W) '$(srcdir)/hash.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-hash.Tpo $(DEPDIR)/memcached-hash.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='hash.cpp' object='memcached-hash.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-hash.obj `if test -f 'hash.cpp'; then $(CYGPATH_W) 'hash.cpp'; else $(CYGPATH_W) '$(srcdir)/hash.cpp'; fi`
+
+memcached-jenkins_hash.o: jenkins_hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-jenkins_hash.o -MD -MP -MF $(DEPDIR)/memcached-jenkins_hash.Tpo -c -o memcached-jenkins_hash.o `test -f 'jenkins_hash.cpp' || echo '$(srcdir)/'`jenkins_hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-jenkins_hash.Tpo $(DEPDIR)/memcached-jenkins_hash.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='jenkins_hash.cpp' object='memcached-jenkins_hash.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-jenkins_hash.o `test -f 'jenkins_hash.cpp' || echo '$(srcdir)/'`jenkins_hash.cpp
+
+memcached-jenkins_hash.obj: jenkins_hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-jenkins_hash.obj -MD -MP -MF $(DEPDIR)/memcached-jenkins_hash.Tpo -c -o memcached-jenkins_hash.obj `if test -f 'jenkins_hash.cpp'; then $(CYGPATH_W) 'jenkins_hash.cpp'; else $(CYGPATH_W) '$(srcdir)/jenkins_hash.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-jenkins_hash.Tpo $(DEPDIR)/memcached-jenkins_hash.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='jenkins_hash.cpp' object='memcached-jenkins_hash.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-jenkins_hash.obj `if test -f 'jenkins_hash.cpp'; then $(CYGPATH_W) 'jenkins_hash.cpp'; else $(CYGPATH_W) '$(srcdir)/jenkins_hash.cpp'; fi`
+
+memcached-murmur3_hash.o: murmur3_hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-murmur3_hash.o -MD -MP -MF $(DEPDIR)/memcached-murmur3_hash.Tpo -c -o memcached-murmur3_hash.o `test -f 'murmur3_hash.cpp' || echo '$(srcdir)/'`murmur3_hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-murmur3_hash.Tpo $(DEPDIR)/memcached-murmur3_hash.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='murmur3_hash.cpp' object='memcached-murmur3_hash.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-murmur3_hash.o `test -f 'murmur3_hash.cpp' || echo '$(srcdir)/'`murmur3_hash.cpp
+
+memcached-murmur3_hash.obj: murmur3_hash.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-murmur3_hash.obj -MD -MP -MF $(DEPDIR)/memcached-murmur3_hash.Tpo -c -o memcached-murmur3_hash.obj `if test -f 'murmur3_hash.cpp'; then $(CYGPATH_W) 'murmur3_hash.cpp'; else $(CYGPATH_W) '$(srcdir)/murmur3_hash.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-murmur3_hash.Tpo $(DEPDIR)/memcached-murmur3_hash.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='murmur3_hash.cpp' object='memcached-murmur3_hash.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-murmur3_hash.obj `if test -f 'murmur3_hash.cpp'; then $(CYGPATH_W) 'murmur3_hash.cpp'; else $(CYGPATH_W) '$(srcdir)/murmur3_hash.cpp'; fi`
+
+memcached-slabs.o: slabs.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-slabs.o -MD -MP -MF $(DEPDIR)/memcached-slabs.Tpo -c -o memcached-slabs.o `test -f 'slabs.cpp' || echo '$(srcdir)/'`slabs.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-slabs.Tpo $(DEPDIR)/memcached-slabs.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='slabs.cpp' object='memcached-slabs.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-slabs.o `test -f 'slabs.cpp' || echo '$(srcdir)/'`slabs.cpp
+
+memcached-slabs.obj: slabs.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-slabs.obj -MD -MP -MF $(DEPDIR)/memcached-slabs.Tpo -c -o memcached-slabs.obj `if test -f 'slabs.cpp'; then $(CYGPATH_W) 'slabs.cpp'; else $(CYGPATH_W) '$(srcdir)/slabs.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-slabs.Tpo $(DEPDIR)/memcached-slabs.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='slabs.cpp' object='memcached-slabs.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-slabs.obj `if test -f 'slabs.cpp'; then $(CYGPATH_W) 'slabs.cpp'; else $(CYGPATH_W) '$(srcdir)/slabs.cpp'; fi`
+
+memcached-items.o: items.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-items.o -MD -MP -MF $(DEPDIR)/memcached-items.Tpo -c -o memcached-items.o `test -f 'items.cpp' || echo '$(srcdir)/'`items.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-items.Tpo $(DEPDIR)/memcached-items.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='items.cpp' object='memcached-items.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-items.o `test -f 'items.cpp' || echo '$(srcdir)/'`items.cpp
+
+memcached-items.obj: items.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-items.obj -MD -MP -MF $(DEPDIR)/memcached-items.Tpo -c -o memcached-items.obj `if test -f 'items.cpp'; then $(CYGPATH_W) 'items.cpp'; else $(CYGPATH_W) '$(srcdir)/items.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-items.Tpo $(DEPDIR)/memcached-items.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='items.cpp' object='memcached-items.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-items.obj `if test -f 'items.cpp'; then $(CYGPATH_W) 'items.cpp'; else $(CYGPATH_W) '$(srcdir)/items.cpp'; fi`
+
+memcached-assoc.o: assoc.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-assoc.o -MD -MP -MF $(DEPDIR)/memcached-assoc.Tpo -c -o memcached-assoc.o `test -f 'assoc.cpp' || echo '$(srcdir)/'`assoc.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-assoc.Tpo $(DEPDIR)/memcached-assoc.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='assoc.cpp' object='memcached-assoc.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-assoc.o `test -f 'assoc.cpp' || echo '$(srcdir)/'`assoc.cpp
+
+memcached-assoc.obj: assoc.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-assoc.obj -MD -MP -MF $(DEPDIR)/memcached-assoc.Tpo -c -o memcached-assoc.obj `if test -f 'assoc.cpp'; then $(CYGPATH_W) 'assoc.cpp'; else $(CYGPATH_W) '$(srcdir)/assoc.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-assoc.Tpo $(DEPDIR)/memcached-assoc.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='assoc.cpp' object='memcached-assoc.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-assoc.obj `if test -f 'assoc.cpp'; then $(CYGPATH_W) 'assoc.cpp'; else $(CYGPATH_W) '$(srcdir)/assoc.cpp'; fi`
+
+memcached-thread.o: thread.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-thread.o -MD -MP -MF $(DEPDIR)/memcached-thread.Tpo -c -o memcached-thread.o `test -f 'thread.cpp' || echo '$(srcdir)/'`thread.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-thread.Tpo $(DEPDIR)/memcached-thread.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='thread.cpp' object='memcached-thread.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-thread.o `test -f 'thread.cpp' || echo '$(srcdir)/'`thread.cpp
+
+memcached-thread.obj: thread.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-thread.obj -MD -MP -MF $(DEPDIR)/memcached-thread.Tpo -c -o memcached-thread.obj `if test -f 'thread.cpp'; then $(CYGPATH_W) 'thread.cpp'; else $(CYGPATH_W) '$(srcdir)/thread.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-thread.Tpo $(DEPDIR)/memcached-thread.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='thread.cpp' object='memcached-thread.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-thread.obj `if test -f 'thread.cpp'; then $(CYGPATH_W) 'thread.cpp'; else $(CYGPATH_W) '$(srcdir)/thread.cpp'; fi`
+
+memcached-daemon.o: daemon.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-daemon.o -MD -MP -MF $(DEPDIR)/memcached-daemon.Tpo -c -o memcached-daemon.o `test -f 'daemon.cpp' || echo '$(srcdir)/'`daemon.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-daemon.Tpo $(DEPDIR)/memcached-daemon.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='daemon.cpp' object='memcached-daemon.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-daemon.o `test -f 'daemon.cpp' || echo '$(srcdir)/'`daemon.cpp
+
+memcached-daemon.obj: daemon.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-daemon.obj -MD -MP -MF $(DEPDIR)/memcached-daemon.Tpo -c -o memcached-daemon.obj `if test -f 'daemon.cpp'; then $(CYGPATH_W) 'daemon.cpp'; else $(CYGPATH_W) '$(srcdir)/daemon.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-daemon.Tpo $(DEPDIR)/memcached-daemon.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='daemon.cpp' object='memcached-daemon.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-daemon.obj `if test -f 'daemon.cpp'; then $(CYGPATH_W) 'daemon.cpp'; else $(CYGPATH_W) '$(srcdir)/daemon.cpp'; fi`
+
+memcached-stats.o: stats.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-stats.o -MD -MP -MF $(DEPDIR)/memcached-stats.Tpo -c -o memcached-stats.o `test -f 'stats.cpp' || echo '$(srcdir)/'`stats.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-stats.Tpo $(DEPDIR)/memcached-stats.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stats.cpp' object='memcached-stats.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-stats.o `test -f 'stats.cpp' || echo '$(srcdir)/'`stats.cpp
+
+memcached-stats.obj: stats.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-stats.obj -MD -MP -MF $(DEPDIR)/memcached-stats.Tpo -c -o memcached-stats.obj `if test -f 'stats.cpp'; then $(CYGPATH_W) 'stats.cpp'; else $(CYGPATH_W) '$(srcdir)/stats.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-stats.Tpo $(DEPDIR)/memcached-stats.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stats.cpp' object='memcached-stats.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-stats.obj `if test -f 'stats.cpp'; then $(CYGPATH_W) 'stats.cpp'; else $(CYGPATH_W) '$(srcdir)/stats.cpp'; fi`
+
+memcached-util.o: util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-util.o -MD -MP -MF $(DEPDIR)/memcached-util.Tpo -c -o memcached-util.o `test -f 'util.cpp' || echo '$(srcdir)/'`util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-util.Tpo $(DEPDIR)/memcached-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='util.cpp' object='memcached-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-util.o `test -f 'util.cpp' || echo '$(srcdir)/'`util.cpp
+
+memcached-util.obj: util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-util.obj -MD -MP -MF $(DEPDIR)/memcached-util.Tpo -c -o memcached-util.obj `if test -f 'util.cpp'; then $(CYGPATH_W) 'util.cpp'; else $(CYGPATH_W) '$(srcdir)/util.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-util.Tpo $(DEPDIR)/memcached-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='util.cpp' object='memcached-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-util.obj `if test -f 'util.cpp'; then $(CYGPATH_W) 'util.cpp'; else $(CYGPATH_W) '$(srcdir)/util.cpp'; fi`
+
+memcached-cache.o: cache.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-cache.o -MD -MP -MF $(DEPDIR)/memcached-cache.Tpo -c -o memcached-cache.o `test -f 'cache.cpp' || echo '$(srcdir)/'`cache.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-cache.Tpo $(DEPDIR)/memcached-cache.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='cache.cpp' object='memcached-cache.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-cache.o `test -f 'cache.cpp' || echo '$(srcdir)/'`cache.cpp
+
+memcached-cache.obj: cache.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-cache.obj -MD -MP -MF $(DEPDIR)/memcached-cache.Tpo -c -o memcached-cache.obj `if test -f 'cache.cpp'; then $(CYGPATH_W) 'cache.cpp'; else $(CYGPATH_W) '$(srcdir)/cache.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-cache.Tpo $(DEPDIR)/memcached-cache.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='cache.cpp' object='memcached-cache.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-cache.obj `if test -f 'cache.cpp'; then $(CYGPATH_W) 'cache.cpp'; else $(CYGPATH_W) '$(srcdir)/cache.cpp'; fi`
+
+memcached-solaris_priv.o: solaris_priv.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-solaris_priv.o -MD -MP -MF $(DEPDIR)/memcached-solaris_priv.Tpo -c -o memcached-solaris_priv.o `test -f 'solaris_priv.cpp' || echo '$(srcdir)/'`solaris_priv.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-solaris_priv.Tpo $(DEPDIR)/memcached-solaris_priv.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='solaris_priv.cpp' object='memcached-solaris_priv.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-solaris_priv.o `test -f 'solaris_priv.cpp' || echo '$(srcdir)/'`solaris_priv.cpp
+
+memcached-solaris_priv.obj: solaris_priv.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-solaris_priv.obj -MD -MP -MF $(DEPDIR)/memcached-solaris_priv.Tpo -c -o memcached-solaris_priv.obj `if test -f 'solaris_priv.cpp'; then $(CYGPATH_W) 'solaris_priv.cpp'; else $(CYGPATH_W) '$(srcdir)/solaris_priv.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-solaris_priv.Tpo $(DEPDIR)/memcached-solaris_priv.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='solaris_priv.cpp' object='memcached-solaris_priv.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-solaris_priv.obj `if test -f 'solaris_priv.cpp'; then $(CYGPATH_W) 'solaris_priv.cpp'; else $(CYGPATH_W) '$(srcdir)/solaris_priv.cpp'; fi`
+
+memcached-sasl_defs.o: sasl_defs.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-sasl_defs.o -MD -MP -MF $(DEPDIR)/memcached-sasl_defs.Tpo -c -o memcached-sasl_defs.o `test -f 'sasl_defs.cpp' || echo '$(srcdir)/'`sasl_defs.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-sasl_defs.Tpo $(DEPDIR)/memcached-sasl_defs.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sasl_defs.cpp' object='memcached-sasl_defs.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-sasl_defs.o `test -f 'sasl_defs.cpp' || echo '$(srcdir)/'`sasl_defs.cpp
+
+memcached-sasl_defs.obj: sasl_defs.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-sasl_defs.obj -MD -MP -MF $(DEPDIR)/memcached-sasl_defs.Tpo -c -o memcached-sasl_defs.obj `if test -f 'sasl_defs.cpp'; then $(CYGPATH_W) 'sasl_defs.cpp'; else $(CYGPATH_W) '$(srcdir)/sasl_defs.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-sasl_defs.Tpo $(DEPDIR)/memcached-sasl_defs.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sasl_defs.cpp' object='memcached-sasl_defs.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-sasl_defs.obj `if test -f 'sasl_defs.cpp'; then $(CYGPATH_W) 'sasl_defs.cpp'; else $(CYGPATH_W) '$(srcdir)/sasl_defs.cpp'; fi`
+
+memcached-hashtable.o: hashtable.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-hashtable.o -MD -MP -MF $(DEPDIR)/memcached-hashtable.Tpo -c -o memcached-hashtable.o `test -f 'hashtable.cpp' || echo '$(srcdir)/'`hashtable.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-hashtable.Tpo $(DEPDIR)/memcached-hashtable.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='hashtable.cpp' object='memcached-hashtable.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-hashtable.o `test -f 'hashtable.cpp' || echo '$(srcdir)/'`hashtable.cpp
+
+memcached-hashtable.obj: hashtable.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-hashtable.obj -MD -MP -MF $(DEPDIR)/memcached-hashtable.Tpo -c -o memcached-hashtable.obj `if test -f 'hashtable.cpp'; then $(CYGPATH_W) 'hashtable.cpp'; else $(CYGPATH_W) '$(srcdir)/hashtable.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-hashtable.Tpo $(DEPDIR)/memcached-hashtable.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='hashtable.cpp' object='memcached-hashtable.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-hashtable.obj `if test -f 'hashtable.cpp'; then $(CYGPATH_W) 'hashtable.cpp'; else $(CYGPATH_W) '$(srcdir)/hashtable.cpp'; fi`
+
+memcached-intset.o: intset.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-intset.o -MD -MP -MF $(DEPDIR)/memcached-intset.Tpo -c -o memcached-intset.o `test -f 'intset.cpp' || echo '$(srcdir)/'`intset.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-intset.Tpo $(DEPDIR)/memcached-intset.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='intset.cpp' object='memcached-intset.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-intset.o `test -f 'intset.cpp' || echo '$(srcdir)/'`intset.cpp
+
+memcached-intset.obj: intset.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-intset.obj -MD -MP -MF $(DEPDIR)/memcached-intset.Tpo -c -o memcached-intset.obj `if test -f 'intset.cpp'; then $(CYGPATH_W) 'intset.cpp'; else $(CYGPATH_W) '$(srcdir)/intset.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-intset.Tpo $(DEPDIR)/memcached-intset.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='intset.cpp' object='memcached-intset.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-intset.obj `if test -f 'intset.cpp'; then $(CYGPATH_W) 'intset.cpp'; else $(CYGPATH_W) '$(srcdir)/intset.cpp'; fi`
+
+memcached-lf-linkedlist.o: lf-linkedlist.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-lf-linkedlist.o -MD -MP -MF $(DEPDIR)/memcached-lf-linkedlist.Tpo -c -o memcached-lf-linkedlist.o `test -f 'lf-linkedlist.cpp' || echo '$(srcdir)/'`lf-linkedlist.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-lf-linkedlist.Tpo $(DEPDIR)/memcached-lf-linkedlist.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='lf-linkedlist.cpp' object='memcached-lf-linkedlist.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-lf-linkedlist.o `test -f 'lf-linkedlist.cpp' || echo '$(srcdir)/'`lf-linkedlist.cpp
+
+memcached-lf-linkedlist.obj: lf-linkedlist.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-lf-linkedlist.obj -MD -MP -MF $(DEPDIR)/memcached-lf-linkedlist.Tpo -c -o memcached-lf-linkedlist.obj `if test -f 'lf-linkedlist.cpp'; then $(CYGPATH_W) 'lf-linkedlist.cpp'; else $(CYGPATH_W) '$(srcdir)/lf-linkedlist.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-lf-linkedlist.Tpo $(DEPDIR)/memcached-lf-linkedlist.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='lf-linkedlist.cpp' object='memcached-lf-linkedlist.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-lf-linkedlist.obj `if test -f 'lf-linkedlist.cpp'; then $(CYGPATH_W) 'lf-linkedlist.cpp'; else $(CYGPATH_W) '$(srcdir)/lf-linkedlist.cpp'; fi`
+
+memcached-nv_lf_util.o: nv_lf_util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-nv_lf_util.o -MD -MP -MF $(DEPDIR)/memcached-nv_lf_util.Tpo -c -o memcached-nv_lf_util.o `test -f 'nv_lf_util.cpp' || echo '$(srcdir)/'`nv_lf_util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-nv_lf_util.Tpo $(DEPDIR)/memcached-nv_lf_util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='nv_lf_util.cpp' object='memcached-nv_lf_util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-nv_lf_util.o `test -f 'nv_lf_util.cpp' || echo '$(srcdir)/'`nv_lf_util.cpp
+
+memcached-nv_lf_util.obj: nv_lf_util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-nv_lf_util.obj -MD -MP -MF $(DEPDIR)/memcached-nv_lf_util.Tpo -c -o memcached-nv_lf_util.obj `if test -f 'nv_lf_util.cpp'; then $(CYGPATH_W) 'nv_lf_util.cpp'; else $(CYGPATH_W) '$(srcdir)/nv_lf_util.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-nv_lf_util.Tpo $(DEPDIR)/memcached-nv_lf_util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='nv_lf_util.cpp' object='memcached-nv_lf_util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-nv_lf_util.obj `if test -f 'nv_lf_util.cpp'; then $(CYGPATH_W) 'nv_lf_util.cpp'; else $(CYGPATH_W) '$(srcdir)/nv_lf_util.cpp'; fi`
 install-pkgincludeHEADERS: $(pkginclude_HEADERS)
 	@$(NORMAL_INSTALL)
 	@list='$(pkginclude_HEADERS)'; test -n "$(pkgincludedir)" || list=; \

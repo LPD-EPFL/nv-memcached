@@ -34,30 +34,30 @@ static bool allow_closed_read = false;
 
 static enum test_return cache_create_test(void)
 {
-    cache_t *cache = cache_create("test", sizeof(uint32_t), sizeof(char*),
+    cache_t *cache = _cache_create("test", sizeof(uint32_t), sizeof(char*),
                                   NULL, NULL);
     assert(cache != NULL);
-    cache_destroy(cache);
+    _cache_destroy(cache);
     return TEST_PASS;
 }
 
 const uint64_t constructor_pattern = 0xdeadcafebabebeef;
 
 static int cache_constructor(void *buffer, void *notused1, int notused2) {
-    uint64_t *ptr = buffer;
+    uint64_t *ptr = (uint64_t*)buffer;
     *ptr = constructor_pattern;
     return 0;
 }
 
 static enum test_return cache_constructor_test(void)
 {
-    cache_t *cache = cache_create("test", sizeof(uint64_t), sizeof(uint64_t),
+    cache_t *cache = _cache_create("test", sizeof(uint64_t), sizeof(uint64_t),
                                   cache_constructor, NULL);
     assert(cache != NULL);
-    uint64_t *ptr = cache_alloc(cache);
+    uint64_t *ptr = (uint64_t*)cache_alloc(cache);
     uint64_t pattern = *ptr;
     cache_free(cache, ptr);
-    cache_destroy(cache);
+    _cache_destroy(cache);
     return (pattern == constructor_pattern) ? TEST_PASS : TEST_FAIL;
 }
 
@@ -69,14 +69,14 @@ static enum test_return cache_fail_constructor_test(void)
 {
     enum test_return ret = TEST_PASS;
 
-    cache_t *cache = cache_create("test", sizeof(uint64_t), sizeof(uint64_t),
+    cache_t *cache = _cache_create("test", sizeof(uint64_t), sizeof(uint64_t),
                                   cache_fail_constructor, NULL);
     assert(cache != NULL);
-    uint64_t *ptr = cache_alloc(cache);
+    uint64_t *ptr = (uint64_t*)cache_alloc(cache);
     if (ptr != NULL) {
         ret = TEST_FAIL;
     }
-    cache_destroy(cache);
+    _cache_destroy(cache);
     return ret;
 }
 
@@ -88,12 +88,12 @@ static void cache_destructor(void *buffer, void *notused) {
 
 static enum test_return cache_destructor_test(void)
 {
-    cache_t *cache = cache_create("test", sizeof(uint32_t), sizeof(char*),
+    cache_t *cache = _cache_create("test", sizeof(uint32_t), sizeof(char*),
                                   NULL, cache_destructor);
     assert(cache != NULL);
-    char *ptr = cache_alloc(cache);
+    char *ptr = (char*)cache_alloc(cache);
     cache_free(cache, ptr);
-    cache_destroy(cache);
+    _cache_destroy(cache);
 
     return (ptr == destruct_data) ? TEST_PASS : TEST_FAIL;
 }
@@ -101,23 +101,23 @@ static enum test_return cache_destructor_test(void)
 static enum test_return cache_reuse_test(void)
 {
     int ii;
-    cache_t *cache = cache_create("test", sizeof(uint32_t), sizeof(char*),
+    cache_t *cache = _cache_create("test", sizeof(uint32_t), sizeof(char*),
                                   NULL, NULL);
-    char *ptr = cache_alloc(cache);
+    char *ptr = (char*)cache_alloc(cache);
     cache_free(cache, ptr);
     for (ii = 0; ii < 100; ++ii) {
-        char *p = cache_alloc(cache);
+        char *p = (char*)cache_alloc(cache);
         assert(p == ptr);
         cache_free(cache, ptr);
     }
-    cache_destroy(cache);
+    _cache_destroy(cache);
     return TEST_PASS;
 }
 
 
 static enum test_return cache_bulkalloc(size_t datasize)
 {
-    cache_t *cache = cache_create("test", datasize, sizeof(char*),
+    cache_t *cache = _cache_create("test", datasize, sizeof(char*),
                                   NULL, NULL);
 #define ITERATIONS 1024
     void *ptr[ITERATIONS];
@@ -133,7 +133,7 @@ static enum test_return cache_bulkalloc(size_t datasize)
     }
 
 #undef ITERATIONS
-    cache_destroy(cache);
+    _cache_destroy(cache);
     return TEST_PASS;
 }
 
@@ -150,17 +150,19 @@ static enum test_return test_issue_161(void)
 static enum test_return cache_redzone_test(void)
 {
 #ifndef HAVE_UMEM_H
-    cache_t *cache = cache_create("test", sizeof(uint32_t), sizeof(char*),
+    cache_t *cache = _cache_create("test", sizeof(uint32_t), sizeof(char*),
                                   NULL, NULL);
 
     /* Ignore SIGABORT */
     struct sigaction old_action;
-    struct sigaction action = { .sa_handler = SIG_IGN, .sa_flags = 0};
+    struct sigaction action;
+    action.sa_handler = SIG_IGN;
+    action.sa_flags = 0;
     sigemptyset(&action.sa_mask);
     sigaction(SIGABRT, &action, &old_action);
 
     /* check memory debug.. */
-    char *p = cache_alloc(cache);
+    char *p = (char*)cache_alloc(cache);
     char old = *(p - 1);
     *(p - 1) = 0;
     cache_free(cache, p);
@@ -174,7 +176,7 @@ static enum test_return cache_redzone_test(void)
     /* restore signal handler */
     sigaction(SIGABRT, &old_action, NULL);
 
-    cache_destroy(cache);
+    _cache_destroy(cache);
 
     return TEST_PASS;
 #else
@@ -423,9 +425,10 @@ static enum test_return test_issue_44(void) {
 static struct addrinfo *lookuphost(const char *hostname, in_port_t port)
 {
     struct addrinfo *ai = 0;
-    struct addrinfo hints = { .ai_family = AF_UNSPEC,
-                              .ai_protocol = IPPROTO_TCP,
-                              .ai_socktype = SOCK_STREAM };
+    struct addrinfo hints;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_socktype = SOCK_STREAM;
     char service[NI_MAXSERV];
     int error;
 
@@ -667,7 +670,7 @@ static enum test_return shutdown_memcached_server(void) {
 static void safe_send(const void* buf, size_t len, bool hickup)
 {
     off_t offset = 0;
-    const char* ptr = buf;
+    const char* ptr = (const char*) buf;
 #ifdef MESSAGE_DEBUG
     uint8_t val = *ptr;
     assert(val == (uint8_t)0x80);
@@ -731,7 +734,7 @@ static bool safe_recv(void *buf, size_t len) {
 }
 
 static bool safe_recv_packet(void *buf, size_t size) {
-    protocol_binary_response_no_extras *response = buf;
+    protocol_binary_response_no_extras *response = (protocol_binary_response_no_extras *) buf;
     assert(size > sizeof(*response));
     if (!safe_recv(response, sizeof(*response))) {
         return false;
@@ -742,7 +745,7 @@ static bool safe_recv_packet(void *buf, size_t size) {
 
     size_t len = sizeof(*response);
 
-    char *ptr = buf;
+    char *ptr = (char*)buf;
     ptr += len;
     if (!safe_recv(ptr, response->message.header.response.bodylen)) {
         return false;
@@ -777,7 +780,7 @@ static off_t storage_command(char*buf,
                              uint32_t flags,
                              uint32_t exp) {
     /* all of the storage commands use the same command layout */
-    protocol_binary_request_set *request = (void*)buf;
+    protocol_binary_request_set *request = (protocol_binary_request_set*)(void*)buf;
     assert(bufsz > sizeof(*request) + keylen + dtalen);
 
     memset(request, 0, sizeof(*request));
@@ -809,7 +812,7 @@ static off_t ext_command(char* buf,
                          size_t keylen,
                          const void* dta,
                          size_t dtalen) {
-    protocol_binary_request_no_extras *request = (void*)buf;
+    protocol_binary_request_no_extras *request = (protocol_binary_request_no_extras*)(void*)buf;
     assert(bufsz > sizeof(*request) + extlen + keylen + dtalen);
 
     memset(request, 0, sizeof(*request));
@@ -849,7 +852,7 @@ static off_t raw_command(char* buf,
 }
 
 static off_t flush_command(char* buf, size_t bufsz, uint8_t cmd, uint32_t exptime, bool use_extra) {
-    protocol_binary_request_flush *request = (void*)buf;
+    protocol_binary_request_flush *request = (protocol_binary_request_flush*)(void*)buf;
     assert(bufsz > sizeof(*request));
 
     memset(request, 0, sizeof(*request));
@@ -876,7 +879,7 @@ static off_t touch_command(char* buf,
                            const void* key,
                            size_t keylen,
                            uint32_t exptime) {
-    protocol_binary_request_touch *request = (void*)buf;
+    protocol_binary_request_touch *request = (protocol_binary_request_touch*)(void*)buf;
     assert(bufsz > sizeof(*request));
 
     memset(request, 0, sizeof(*request));
@@ -904,7 +907,7 @@ static off_t arithmetic_command(char* buf,
                                 uint64_t delta,
                                 uint64_t initial,
                                 uint32_t exp) {
-    protocol_binary_request_incr *request = (void*)buf;
+    protocol_binary_request_incr *request = (protocol_binary_request_incr*)(void*)buf;
     assert(bufsz > sizeof(*request) + keylen);
 
     memset(request, 0, sizeof(*request));
@@ -1702,7 +1705,7 @@ static enum test_return test_binary_illegal(void) {
 volatile bool hickup_thread_running;
 
 static void *binary_hickup_recv_verification_thread(void *arg) {
-    protocol_binary_response_no_extras *response = malloc(65*1024);
+    protocol_binary_response_no_extras *response = (protocol_binary_response_no_extras*)malloc(65*1024);
     if (response != NULL) {
         while (safe_recv_packet(response, 65*1024)) {
             /* Just validate the packet format */
@@ -1850,7 +1853,7 @@ static enum test_return test_binary_pipeline_hickup(void)
     }
 
     /* send quitq to shut down the read thread ;-) */
-    size_t len = raw_command(buffer, buffersize, PROTOCOL_BINARY_CMD_QUITQ,
+    size_t len = raw_command((char*)buffer, buffersize, PROTOCOL_BINARY_CMD_QUITQ,
                              NULL, 0, NULL, 0);
     safe_send(buffer, len, false);
 
@@ -1936,7 +1939,7 @@ struct testcase {
 };
 
 struct testcase testcases[] = {
-    { "cache_create", cache_create_test },
+    { "_cache_create", cache_create_test },
     { "cache_constructor", cache_constructor_test },
     { "cache_constructor_fail", cache_fail_constructor_test },
     { "cache_destructor", cache_destructor_test },

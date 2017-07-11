@@ -75,7 +75,7 @@ static pthread_mutex_t lru_crawler_stats_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t lru_maintainer_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t cas_id_lock = PTHREAD_MUTEX_INITIALIZER;
 
-#ifdef CLHT
+#ifdef NVM
 // TODO: handle timestamp wraparound
 typedef struct {
     uint64_t* ts_snapshot;
@@ -275,7 +275,7 @@ static size_t item_make_header(const uint8_t nkey, const int flags, const int nb
     return sizeof(item) + nkey + *nsuffix + nbytes;
 }
 
-#ifdef CLHT
+#ifdef NVM
 static int item_evict(const unsigned int id, const uint32_t cur_hv) {
     int tries = 0;
     while (1) {
@@ -324,7 +324,7 @@ item *do_item_alloc(char *key, const size_t nkey, const int flags,
     if (id == 0)
         return 0;
 
-#ifndef CLHT
+#ifndef NVM
     /* If no memory is available, attempt a direct LRU juggle/eviction */
     /* This is a race in order to simplify lru_pull_tail; in cases where
      * locked items are on the tail, you want them to fall out and cause
@@ -337,7 +337,7 @@ item *do_item_alloc(char *key, const size_t nkey, const int flags,
         if (!settings.lru_maintainer_thread) {
             lru_pull_tail(id, COLD_LRU, 0, false, cur_hv);
         }
-        it = slabs_alloc(ntotal, id, &total_chunks);
+        it = (item*)slabs_alloc(ntotal, id, &total_chunks);
         if (settings.expirezero_does_not_evict)
             total_chunks -= noexp_lru_size(id);
         if (it == NULL) {
@@ -359,14 +359,14 @@ item *do_item_alloc(char *key, const size_t nkey, const int flags,
         pthread_mutex_unlock(&lru_locks[id]);
     }
 #else
-    it = slabs_alloc(ntotal, id, &total_chunks);
+    it = (item*)slabs_alloc(ntotal, id, &total_chunks);
 
     // Evict from cache until we manage to allocate
     while (it == NULL) {
         // If eviction fails, out of memory error will be returned
         if (!item_evict(id, cur_hv))
             break;
-        it = slabs_alloc(ntotal, id, &total_chunks);
+        it = (item*)slabs_alloc(ntotal, id, &total_chunks);
     }
 #endif
 
@@ -381,7 +381,7 @@ item *do_item_alloc(char *key, const size_t nkey, const int flags,
     //assert(it != heads[id]);
 
     /* Refcount is seeded to 1 by slabs_alloc() */
-#ifndef CLHT
+#ifndef NVM
     it->next = it->prev = it->h_next = 0;
 #else
     it->next = it->prev = 0;
@@ -415,7 +415,7 @@ item *do_item_alloc(char *key, const size_t nkey, const int flags,
 void item_free(item *it) {
     assert((it->it_flags & ITEM_SLABBED) == 0);
     assert((it->it_flags & ITEM_LINKED) == 0);
-#ifndef CLHT
+#ifndef NVM
     assert(it != heads[it->slabs_clsid]);
     assert(it != tails[it->slabs_clsid]);
     assert(it->refcount == 0);
@@ -449,7 +449,7 @@ bool item_size_ok(const size_t nkey, const int flags, const int nbytes) {
     return slabs_clsid(ntotal) != 0;
 }
 
-CLHT_UNUSED static void do_item_link_q(item *it) { /* item is the new head */
+NVM_UNUSED static void do_item_link_q(item *it) { /* item is the new head */
     item **head, **tail;
     assert((it->it_flags & ITEM_SLABBED) == 0);
 
@@ -467,7 +467,7 @@ CLHT_UNUSED static void do_item_link_q(item *it) { /* item is the new head */
 }
 
 static void item_link_q(item *it) {
-#ifndef CLHT
+#ifndef NVM
     pthread_mutex_lock(&lru_locks[it->slabs_clsid]);
     do_item_link_q(it);
     pthread_mutex_unlock(&lru_locks[it->slabs_clsid]);
@@ -496,8 +496,8 @@ static void do_item_unlink_q(item *it) {
     return;
 }
 
-CLHT_UNUSED static void item_unlink_q(item *it) {
-#ifndef CLHT
+NVM_UNUSED static void item_unlink_q(item *it) {
+#ifndef NVM
     pthread_mutex_lock(&lru_locks[it->slabs_clsid]);
     do_item_unlink_q(it);
     pthread_mutex_unlock(&lru_locks[it->slabs_clsid]);
@@ -505,8 +505,8 @@ CLHT_UNUSED static void item_unlink_q(item *it) {
 }
 
 int do_item_link(item *it, const uint32_t hv) {
-#ifdef CLHT
-    // Shouldn't be called in CLHT mode
+#ifdef NVM
+    // Shouldn't be called in NVM mode
     assert(false);
 #endif
     MEMCACHED_ITEM_LINK(ITEM_key(it), it->nkey, it->nbytes);
@@ -524,14 +524,14 @@ int do_item_link(item *it, const uint32_t hv) {
     ITEM_set_cas(it, (settings.use_cas) ? get_cas_id() : 0);
     assoc_insert(it, hv);
     item_link_q(it);
-#ifndef CLHT
+#ifndef NVM
     refcount_incr(&it->refcount);
 #endif
 
     return 1;
 }
 
-#ifdef CLHT
+#ifdef NVM
 void do_item_set(item *it, const uint32_t hv) {
     assert((it->it_flags & (ITEM_LINKED|ITEM_SLABBED)) == 0);
 
@@ -605,7 +605,7 @@ int do_item_add(item *it, const uint32_t hv) {
 
 void do_item_unlink(item *it, const uint32_t hv) {
     MEMCACHED_ITEM_UNLINK(ITEM_key(it), it->nkey, it->nbytes);
-#ifndef CLHT
+#ifndef NVM
     if ((it->it_flags & ITEM_LINKED) != 0) {
         it->it_flags &= ~ITEM_LINKED;
         STATS_LOCK();
@@ -640,7 +640,7 @@ void do_item_unlink(item *it, const uint32_t hv) {
 
 /* FIXME: Is it necessary to keep this copy/pasted code? */
 void do_item_unlink_nolock(item *it, const uint32_t hv) {
-#ifndef CLHT
+#ifndef NVM
     MEMCACHED_ITEM_UNLINK(ITEM_key(it), it->nkey, it->nbytes);
     if ((it->it_flags & ITEM_LINKED) != 0) {
         it->it_flags &= ~ITEM_LINKED;
@@ -658,8 +658,8 @@ void do_item_unlink_nolock(item *it, const uint32_t hv) {
 }
 
 void do_item_remove(item *it) {
-#ifdef CLHT
-    // Shouldn't  be called in CLHT mode
+#ifdef NVM
+    // Shouldn't  be called in NVM mode
     assert(false);
 #endif
     MEMCACHED_ITEM_REMOVE(ITEM_key(it), it->nkey, it->nbytes);
@@ -675,7 +675,7 @@ void do_item_remove(item *it) {
 /* Copy/paste to avoid adding two extra branches for all common calls, since
  * _nolock is only used in an uncommon case where we want to relink. */
 void do_item_update_nolock(item *it) {
-#ifndef CLHT
+#ifndef NVM
     MEMCACHED_ITEM_UPDATE(ITEM_key(it), it->nkey, it->nbytes);
     if (it->time < current_time - ITEM_UPDATE_INTERVAL) {
         assert((it->it_flags & ITEM_SLABBED) == 0);
@@ -693,7 +693,7 @@ void do_item_update_nolock(item *it) {
 
 /* Bump the last accessed time, or relink if we're in compat mode */
 void do_item_update(item *it) {
-#ifndef CLHT
+#ifndef NVM
     MEMCACHED_ITEM_UPDATE(ITEM_key(it), it->nkey, it->nbytes);
     if (it->time < current_time - ITEM_UPDATE_INTERVAL) {
         assert((it->it_flags & ITEM_SLABBED) == 0);
@@ -712,8 +712,8 @@ void do_item_update(item *it) {
 }
 
 int do_item_replace(item *it, item *new_it, const uint32_t hv) {
-#ifdef CLHT
-    // Shouldn't be called in CLHT mode
+#ifdef NVM
+    // Shouldn't be called in NVM mode
     assert(false);
 #endif
     MEMCACHED_ITEM_REPLACE(ITEM_key(it), it->nkey, it->nbytes,
@@ -748,7 +748,7 @@ char *item_cachedump(const unsigned int slabs_clsid, const unsigned int limit, u
     pthread_mutex_lock(&lru_locks[id]);
     it = heads[id];
 
-    buffer = malloc((size_t)memlimit);
+    buffer = (char*)malloc((size_t)memlimit);
     if (buffer == 0) {
         return NULL;
     }
@@ -942,7 +942,7 @@ void item_stats_sizes(ADD_STAT add_stats, void *c) {
 
     /* max 1MB object, divided into 32 bytes size buckets */
     const int num_buckets = 32768;
-    unsigned int *histogram = calloc(num_buckets, sizeof(int));
+    unsigned int *histogram = (unsigned int *)calloc(num_buckets, sizeof(int));
 
     if (histogram != NULL) {
         int i;
@@ -976,7 +976,7 @@ void item_stats_sizes(ADD_STAT add_stats, void *c) {
 
 /** wrapper around assoc_find which does the lazy expiration logic */
 item *do_item_get(const char *key, const size_t nkey, const uint32_t hv) {
-#ifdef CLHT
+#ifdef NVM
     /* For every get hit or miss we increase thread timestamp twice. We increase
      * thread timestamp before trying to find the item. This ensures that the
      * item won't be freed until we increase the timestamp again when we release
@@ -993,12 +993,12 @@ item *do_item_get(const char *key, const size_t nkey, const uint32_t hv) {
 #endif
     item *it = assoc_find(key, nkey, hv);
     if (it == NULL) {
-#ifdef CLHT
+#ifdef NVM
         ITEM_TIMESTAMP;
 #endif
     } else {
         assert((it->it_flags & ITEM_SLABBED) == 0);
-#ifndef CLHT
+#ifndef NVM
         refcount_incr(&it->refcount);
 #endif
 
@@ -1039,7 +1039,7 @@ item *do_item_get(const char *key, const size_t nkey, const uint32_t hv) {
     }
 
     if (it != NULL) {
-#ifndef CLHT
+#ifndef NVM
         // TODO: Include this part back, changes to item need to be atomic
         //       item_remove should be changed to item_free
         if (is_flushed(it)) {
@@ -1078,7 +1078,7 @@ item *do_item_touch(const char *key, size_t nkey, uint32_t exptime,
     return it;
 }
 
-#ifdef CLHT
+#ifdef NVM
 // To be called after get or touch, once the item is no longer used
 void do_item_release(item* it) {
     ITEM_TIMESTAMP;

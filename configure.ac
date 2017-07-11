@@ -3,11 +3,11 @@ m4_include([version.m4])
 m4_include([m4/c99-backport.m4])
 AC_INIT(memcached, VERSION_NUMBER, memcached@googlegroups.com)
 AC_CANONICAL_SYSTEM
-AC_CONFIG_SRCDIR(memcached.c)
+AC_CONFIG_SRCDIR(memcached.cpp)
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 AM_CONFIG_HEADER(config.h)
 
-AC_PROG_CC
+AC_PROG_CXX
 
 dnl **********************************************************************
 dnl DETECT_ICC ([ACTION-IF-YES], [ACTION-IF-NO])
@@ -204,14 +204,14 @@ AC_ARG_ENABLE(64bit,
   [AS_HELP_STRING([--enable-64bit],[build 64bit version])])
 if test "x$enable_64bit" = "xyes"
 then
-    org_cflags=$CFLAGS
-    CFLAGS=-m64
+    org_cppflags=$CPPFLAGS
+    CPPFLAGS=-m64
     AC_RUN_IFELSE(
       [AC_LANG_PROGRAM([], [dnl
 return sizeof(void*) == 8 ? 0 : 1;
       ])
     ],[
-      CFLAGS="-m64 $org_cflags"
+      CPPFLAGS="-m64 $org_cppflags"
     ],[
     AC_MSG_ERROR([Don't know how to build a 64-bit object.])
     ])
@@ -573,27 +573,17 @@ dnl **********************************************************************
 dnl Add support for CLHT as the underlying hashtable
 dnl **********************************************************************
 AC_ARG_ENABLE(
-    [clht_lb],
-    [  --enable-clht-lb    Use lock-based clht as the hashtable],
+    [nv_lf],
+    [  --enable-nv-lf     Use nv-lf data structures],
     [case "${enableval}" in
-        yes) clht_lb=true ;;
-        no)  clht_lb=false ;;
-        *) AC_MSG_ERROR([bad value ${enableval} for --enable-clht-lb]) ;;
+        yes) nv_lf=true ;;
+        no)  nv_lf=false ;;
+        *) AC_MSG_ERROR([bad value ${enableval} for --enable-nv-lf]) ;;
      esac],
-    [clht_lb=false]
+    [nv_lf=false]
 )
-AC_ARG_ENABLE(
-    [clht_lf],
-    [  --enable-clht-lf    Use lock-free clht as the hashtable],
-    [case "${enableval}" in
-        yes) clht_lf=true ;;
-        no)  clht_lf=false ;;
-        *) AC_MSG_ERROR([bad value ${enableval} for --enable-clht-lf]) ;;
-     esac],
-    [clht_lf=false]
-)
-AM_CONDITIONAL([USE_CLHT_LB], [test x$clht_lb = xtrue])
-AM_CONDITIONAL([USE_CLHT_LF], [test x$clht_lf = xtrue])
+
+AM_CONDITIONAL([USE_NV_LF], [test x$nv_lf = xtrue])
 
 
 dnl Let the compiler be a bit more picky. Please note that you cannot
@@ -603,21 +593,21 @@ dnl to detect the function ;-)
 if test "$ICC" = "yes"
 then
    dnl ICC trying to be gcc.
-   CFLAGS="$CFLAGS -diag-disable 187 -Wall -Werror"
+   CPPFLAGS="$CPPFLAGS -diag-disable 187 -Wall -Werror"
    AC_DEFINE([_GNU_SOURCE],[1],[find sigignore on Linux])
 elif test "$GCC" = "yes"
 then
   GCC_VERSION=`$CC -dumpversion`
-  CFLAGS="$CFLAGS -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls"
+  CPPFLAGS="$CPPFLAGS -Wall -Wmissing-declarations -Wredundant-decls"
   case $GCC_VERSION in
     4.4.*)
-    CFLAGS="$CFLAGS -fno-strict-aliasing"
+    CPPFLAGS="$CPPFLAGS -fno-strict-aliasing"
     ;;
   esac
   AC_DEFINE([_GNU_SOURCE],[1],[find sigignore on Linux])
 elif test "$SUNCC" = "yes"
 then
-  CFLAGS="$CFLAGS -errfmt=error -errwarn -errshort=tags"
+  CPPFLAGS="$CPPFLAGS -errfmt=error -errwarn -errshort=tags"
 fi
 
 AC_CONFIG_FILES(Makefile doc/Makefile)

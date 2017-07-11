@@ -120,14 +120,14 @@ unsigned short refcount_decr(unsigned short *refcount) {
  */
 
 void item_lock(uint32_t hv) {
-#ifndef CLHT
+#ifndef NVM
     mutex_lock(&item_locks[hv & hashmask(item_lock_hashpower)]);
 #endif
 }
 
 void *item_trylock(uint32_t hv) {
-#ifdef CLHT
-    // Shouldn't be called in CLHT mode
+#ifdef NVM
+    // Shouldn't be called in NVM mode
     assert(false);
     return NULL;
 #else
@@ -140,13 +140,13 @@ void *item_trylock(uint32_t hv) {
 }
 
 void item_trylock_unlock(void *lock) {
-#ifndef CLHT
+#ifndef NVM
     mutex_unlock((pthread_mutex_t *) lock);
 #endif
 }
 
 void item_unlock(uint32_t hv) {
-#ifndef CLHT
+#ifndef NVM
     mutex_unlock(&item_locks[hv & hashmask(item_lock_hashpower)]);
 #endif
 }
@@ -272,7 +272,7 @@ static CQ_ITEM *cqi_new(void) {
         int i;
 
         /* Allocate a bunch of items at once to reduce fragmentation */
-        item = malloc(sizeof(CQ_ITEM) * ITEMS_PER_ALLOC);
+        item = (CQ_ITEM*)malloc(sizeof(CQ_ITEM) * ITEMS_PER_ALLOC);
         if (NULL == item) {
             STATS_LOCK();
             stats.malloc_fails++;
@@ -356,7 +356,7 @@ static void setup_thread(LIBEVENT_THREAD *me) {
         exit(1);
     }
 
-    me->new_conn_queue = malloc(sizeof(struct conn_queue));
+    me->new_conn_queue = (conn_queue*)malloc(sizeof(struct conn_queue));
     if (me->new_conn_queue == NULL) {
         perror("Failed to allocate memory for connection queue");
         exit(EXIT_FAILURE);
@@ -368,7 +368,7 @@ static void setup_thread(LIBEVENT_THREAD *me) {
         exit(EXIT_FAILURE);
     }
 
-    me->suffix_cache = cache_create("suffix", SUFFIX_SIZE, sizeof(char*),
+    me->suffix_cache = _cache_create("suffix", SUFFIX_SIZE, sizeof(char*),
                                     NULL, NULL);
     if (me->suffix_cache == NULL) {
         fprintf(stderr, "Failed to create suffix cache\n");
@@ -380,12 +380,12 @@ static void setup_thread(LIBEVENT_THREAD *me) {
  * Worker thread: main event loop
  */
 static void *worker_libevent(void *arg) {
-    LIBEVENT_THREAD *me = arg;
+    LIBEVENT_THREAD *me = (LIBEVENT_THREAD*)arg;
 
     /* Any per-thread setup can happen here; memcached_thread_init() will block until
      * all threads have finished initializing.
      */
-#ifdef CLHT
+#ifdef NVM
     assoc_thread_init(me->thread_index);
     item_gc_thread_init(me->thread_index);
 #endif
@@ -402,7 +402,7 @@ static void *worker_libevent(void *arg) {
  * input arrives on the libevent wakeup pipe.
  */
 static void thread_libevent_process(int fd, short which, void *arg) {
-    LIBEVENT_THREAD *me = arg;
+    LIBEVENT_THREAD *me = (LIBEVENT_THREAD*)arg;
     CQ_ITEM *item;
     char buf[1];
 
@@ -524,7 +524,7 @@ item *item_touch(const char *key, size_t nkey, uint32_t exptime) {
     return it;
 }
 
-#ifdef CLHT
+#ifdef NVM
 void item_release(item* item) {
     uint32_t hv;
     hv = hash(ITEM_key(item), item->nkey);
@@ -784,7 +784,7 @@ void memcached_thread_init(int nthreads, struct event_base *main_base) {
     item_lock_count = hashsize(power);
     item_lock_hashpower = power;
 
-    item_locks = calloc(item_lock_count, sizeof(pthread_mutex_t));
+    item_locks = (pthread_mutex_t*)calloc(item_lock_count, sizeof(pthread_mutex_t));
     if (! item_locks) {
         perror("Can't allocate item locks");
         exit(1);
@@ -793,7 +793,7 @@ void memcached_thread_init(int nthreads, struct event_base *main_base) {
         pthread_mutex_init(&item_locks[i], NULL);
     }
 
-    threads = calloc(nthreads, sizeof(LIBEVENT_THREAD));
+    threads = (LIBEVENT_THREAD*)calloc(nthreads, sizeof(LIBEVENT_THREAD));
     if (! threads) {
         perror("Can't allocate thread descriptors");
         exit(1);
@@ -809,7 +809,7 @@ void memcached_thread_init(int nthreads, struct event_base *main_base) {
             exit(1);
         }
 
-#ifdef CLHT
+#ifdef NVM
         threads[i].thread_index = i;
 #endif
 

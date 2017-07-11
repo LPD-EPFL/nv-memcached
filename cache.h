@@ -80,7 +80,7 @@ typedef struct {
  *                   to the os.
  * @return a handle to an object cache if successful, NULL otherwise.
  */
-cache_t* cache_create(const char* name, size_t bufsize, size_t align,
+cache_t* _cache_create(const char* name, size_t bufsize, size_t align,
                       cache_constructor_t* constructor,
                       cache_destructor_t* destructor);
 /**
@@ -92,7 +92,7 @@ cache_t* cache_create(const char* name, size_t bufsize, size_t align,
  *
  * @param handle the handle to the object cache to destroy.
  */
-void cache_destroy(cache_t* handle);
+void _cache_destroy(cache_t* handle);
 /**
  * Allocate an object from the cache.
  *

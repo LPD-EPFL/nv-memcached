@@ -16,12 +16,12 @@ int cache_error = 0;
 
 const int initial_pool_size = 64;
 
-cache_t* cache_create(const char *name, size_t bufsize, size_t align,
+cache_t* _cache_create(const char *name, size_t bufsize, size_t align,
                       cache_constructor_t* constructor,
                       cache_destructor_t* destructor) {
-    cache_t* ret = calloc(1, sizeof(cache_t));
+    cache_t* ret = (cache_t*)calloc(1, sizeof(cache_t));
     char* nm = strdup(name);
-    void** ptr = calloc(initial_pool_size, sizeof(void*));
+    void** ptr = (void**)calloc(initial_pool_size, sizeof(void*));
     if (ret == NULL || nm == NULL || ptr == NULL ||
         pthread_mutex_init(&ret->mutex, NULL) == -1) {
         free(ret);
@@ -47,14 +47,14 @@ cache_t* cache_create(const char *name, size_t bufsize, size_t align,
 
 static inline void* get_object(void *ptr) {
 #ifndef NDEBUG
-    uint64_t *pre = ptr;
+    uint64_t *pre = (uint64_t *)ptr;
     return pre + 1;
 #else
     return ptr;
 #endif
 }
 
-void cache_destroy(cache_t *cache) {
+void _cache_destroy(cache_t *cache) {
     while (cache->freecurr > 0) {
         void *ptr = cache->ptr[--cache->freecurr];
         if (cache->destructor) {
@@ -92,7 +92,7 @@ void* cache_alloc(cache_t *cache) {
 #ifndef NDEBUG
     if (object != NULL) {
         /* add a simple form of buffer-check */
-        uint64_t *pre = ret;
+        uint64_t *pre = (uint64_t *)ret;
         *pre = redzone_pattern;
         ret = pre+1;
         memcpy(((char*)ret) + cache->bufsize - (2 * sizeof(redzone_pattern)),
@@ -115,7 +115,7 @@ void cache_free(cache_t *cache, void *ptr) {
         pthread_mutex_unlock(&cache->mutex);
         return;
     }
-    uint64_t *pre = ptr;
+    uint64_t *pre = (uint64_t *)ptr;
     --pre;
     if (*pre != redzone_pattern) {
         raise(SIGABRT);
@@ -130,7 +130,7 @@ void cache_free(cache_t *cache, void *ptr) {
     } else {
         /* try to enlarge free connections array */
         size_t newtotal = cache->freetotal * 2;
-        void **new_free = realloc(cache->ptr, sizeof(char *) * newtotal);
+        void **new_free = (void **)realloc(cache->ptr, sizeof(char *) * newtotal);
         if (new_free) {
             cache->freetotal = newtotal;
             cache->ptr = new_free;

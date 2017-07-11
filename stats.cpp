@@ -90,13 +90,13 @@ static PREFIX_STATS *stats_prefix_find(const char *key, const size_t nkey) {
             return pfs;
     }
 
-    pfs = calloc(sizeof(PREFIX_STATS), 1);
+    pfs = (PREFIX_STATS*)calloc(sizeof(PREFIX_STATS), 1);
     if (NULL == pfs) {
         perror("Can't allocate space for stats structure: calloc");
         return NULL;
     }
 
-    pfs->prefix = malloc(length + 1);
+    pfs->prefix = (char*)malloc(length + 1);
     if (NULL == pfs->prefix) {
         perror("Can't allocate space for copy of prefix: malloc");
         free(pfs);
@@ -183,7 +183,7 @@ char *stats_prefix_dump(int *length) {
            num_prefixes * (strlen(format) - 2 /* %s */
                            + 4 * (20 - 4)) /* %llu replaced by 20-digit num */
                            + sizeof("END\r\n");
-    buf = malloc(size);
+    buf = (char*)malloc(size);
     if (NULL == buf) {
         perror("Can't allocate stats response: malloc");
         STATS_UNLOCK();

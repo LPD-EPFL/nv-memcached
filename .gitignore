@@ -1,3 +1,12 @@
+# Ignore all
+*
+
+# Unignore all with extensions
+!*.*
+
+# Unignore all dirs
+!*/
+
 # Prerequisites
 *.d
 
@@ -50,3 +59,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+.deps/
+autom4te.cache/
+config.h.in~
+config.log
+config.status
+

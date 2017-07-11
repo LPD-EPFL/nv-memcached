@@ -4,51 +4,61 @@ noinst_PROGRAMS = memcached-debug sizes testapp timedrun
 
 BUILT_SOURCES=
 
-testapp_SOURCES = testapp.c util.c util.h
+testapp_SOURCES = testapp.cpp util.cpp util.h
 
-timedrun_SOURCES = timedrun.c
+timedrun_SOURCES = timedrun.cpp
 
-memcached_SOURCES = memcached.c memcached.h \
-                    hash.c hash.h \
-                    jenkins_hash.c jenkins_hash.h \
-                    murmur3_hash.c murmur3_hash.h \
-                    slabs.c slabs.h \
-                    items.c items.h \
-                    assoc.c assoc.h \
-                    thread.c daemon.c \
-                    stats.c stats.h \
-                    util.c util.h \
+sizes_SOURCES = sizes.h sizes.cpp
+
+memcached_SOURCES = memcached.cpp memcached.h \
+                    hash.cpp hash.h \
+                    jenkins_hash.cpp jenkins_hash.h \
+                    murmur3_hash.cpp murmur3_hash.h \
+                    slabs.cpp slabs.h \
+                    items.cpp items.h \
+                    assoc.cpp assoc.h \
+                    thread.cpp daemon.cpp \
+                    stats.cpp stats.h \
+                    util.cpp util.h \
                     trace.h cache.h sasl_defs.h
 
 if BUILD_CACHE
-memcached_SOURCES += cache.c
-testapp_SOURCES += cache.c
+memcached_SOURCES += cache.cpp
+testapp_SOURCES += cache.cpp
 endif
 
 if BUILD_SOLARIS_PRIVS
-memcached_SOURCES += solaris_priv.c
+memcached_SOURCES += solaris_priv.cpp
 endif
 
 if ENABLE_SASL
-memcached_SOURCES += sasl_defs.c
+memcached_SOURCES += sasl_defs.cpp
 endif
 
-if USE_CLHT_LB
-memcached_SOURCES += atomic_ops.h clht.h \
-		     ssmem.h ssmem.c \
-		     clht_util.h clht_util.c \
-                     clht_lb_res.h clht_lb_res.c clht_gc.c
-CFLAGS += -DCLHT
-else
-if USE_CLHT_LF
-memcached_SOURCES += atomic_ops.h clht.h \
-		     ssmem.h ssmem.c \
-		     clht_util.h clht_util.c \
-		     clht_lf_res.h clht_lf_res.c \
-		     clht_lb_res.h clht_gc.c
-CFLAGS += -DCLHT
+memcached_LDFLAGS = 
+memcached_LDADD =
+memcached_DEPENDENCIES =
+
+if USE_NV_LF
+memcached_SOURCES += atomic_ops_if.h hashtable.h hashtable.cpp \
+            intset.cpp intset.h lf-linkedlist.cpp lf-linkedlist.h \
+            lf-common.h common.h random.h latency.h barrier.h \
+            main_test_loop.h utils.h measurements.h nv_lf_util.h nv_lf_util.cpp
+CPPFLAGS += -DNVM
+CPPFLAGS += -I$(NVRAM_PATH)/include/libnvram
+CPPFLAGS += -I$(NVML_PATH)/include
+CPPFLAGS += -I$(JEMALLOC_PATH)/include
+CPPFLAGS += -I$(ATOMIC_OPS_PATH)/include -I$(ATOMIC_OPS_PATH)/include/atomic_ops -I$(ATOMIC_OPS_PATH)/include/atomic_ops/sysdeps
+CPPFLAGS += -I./external/include
+
+LIBS += -lrt -lm
+LIBS += -L${JEMALLOC_PATH}/lib -Wl,-rpath,${JEMALLOC_PATH}/lib -ljemalloc
+LIBS += -L${NVRAM_PATH}/lib -lnvram
+LIBS += -L${NVML_PATH}/lib -lpmem -lpmemobj
+LIBS += -L./external/lib 
 endif
-endif
+
+LIBS += -lpthread
 
 memcached_debug_SOURCES = $(memcached_SOURCES)
 memcached_CPPFLAGS = -DNDEBUG

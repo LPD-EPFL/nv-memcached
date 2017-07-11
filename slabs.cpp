@@ -38,7 +38,7 @@ typedef struct {
     unsigned int killing;  /* index+1 of dying slab, or zero if none */
     size_t requested; /* The number of requested bytes */
 
-#ifdef CLHT
+#ifdef NVM
     char* bitmap;             /* bit per slot for clock alg. */
     unsigned int clock_hand;  /* current slot for clock alg. */
 #endif
@@ -186,7 +186,7 @@ static int grow_slab_list (const unsigned int id) {
         void *new_list = realloc(p->slab_list, new_size * sizeof(void *));
         if (new_list == 0) return 0;
         p->list_size = new_size;
-        p->slab_list = new_list;
+        p->slab_list = (void **)new_list;
     }
     return 1;
 }
@@ -200,7 +200,7 @@ static void split_slab_page_into_freelist(char *ptr, const unsigned int id) {
     }
 }
 
-#ifdef CLHT
+#ifdef NVM
 // Initial contents of bitmap don't matter, since we set bit when item is used
 static int clock_grow_bitmap(const unsigned int id) {
     slabclass_t* p = &slabclass[id];
@@ -212,7 +212,7 @@ static int clock_grow_bitmap(const unsigned int id) {
         if (p->bitmap == NULL)
             return 0;
     } else {
-        char* new_bitmap = realloc(p->bitmap, bitmap_size);
+        char* new_bitmap = (char*)realloc(p->bitmap, bitmap_size);
         if (new_bitmap == NULL)
             return 0;
         p->bitmap = new_bitmap;
@@ -246,10 +246,10 @@ static int do_slabs_newslab(const unsigned int id) {
     }
 
     if ((grow_slab_list(id) == 0) ||
-#ifdef CLHT
+#ifdef NVM
         (clock_grow_bitmap(id) == 0) ||
 #endif
-        ((ptr = memory_allocate((size_t)len)) == 0)) {
+        ((ptr = (char*)memory_allocate((size_t)len)) == 0)) {
 
         MEMCACHED_SLABS_SLABCLASS_ALLOCATE_FAILED(id);
         return 0;
@@ -257,7 +257,7 @@ static int do_slabs_newslab(const unsigned int id) {
 
     memset(ptr, 0, (size_t)len);
     split_slab_page_into_freelist(ptr, id);
-#ifdef CLHT
+#ifdef NVM
     set_item_indices(ptr, id);
 #endif
 
@@ -295,7 +295,7 @@ static void *do_slabs_alloc(const size_t size, unsigned int id, unsigned int *to
         /* Kill flag and initialize refcount here for lock safety in slab
          * mover's freeness detection. */
         it->it_flags &= ~ITEM_SLABBED;
-#ifndef CLHT
+#ifndef NVM
         it->refcount = 1;
 #endif
         p->sl_curr--;
@@ -327,7 +327,7 @@ static void do_slabs_free(void *ptr, const size_t size, unsigned int id) {
     it->it_flags |= ITEM_SLABBED;
     it->slabs_clsid = 0;
     it->prev = 0;
-    it->next = p->slots;
+    it->next = (item*)p->slots;
     if (it->next) it->next->prev = it;
     p->slots = it;
 
@@ -506,7 +506,7 @@ unsigned int slabs_available_chunks(const unsigned int id, bool *mem_flag,
     return ret;
 }
 
-#ifdef CLHT
+#ifdef NVM
 static inline int clock_get_bit(char* bitmap, unsigned int index) {
     unsigned int byte_index = index >> 3;  // index / 8
     char mask = 1 << (index & 7);          // index % 8
@@ -768,7 +768,7 @@ static int slab_rebalance_move(void) {
     for (x = 0; x < slab_bulk_check; x++) {
         hv = 0;
         hold_lock = NULL;
-        item *it = slab_rebal.slab_pos;
+        item *it = (item*)slab_rebal.slab_pos;
         status = MOVE_PASS;
         if (it->slabs_clsid != 255) {
             /* ITEM_SLABBED can only be added/removed under the slabs_lock */
@@ -883,7 +883,7 @@ static void slab_rebalance_finish(void) {
     memset(slab_rebal.slab_start, 0, (size_t)settings.item_size_max);
 
     d_cls->slab_list[d_cls->slabs++] = slab_rebal.slab_start;
-    split_slab_page_into_freelist(slab_rebal.slab_start,
+    split_slab_page_into_freelist((char*)slab_rebal.slab_start,
         slab_rebal.d_clsid);
 
     slab_rebal.done       = 0;

@@ -34,7 +34,7 @@ unsigned int hashpower = HASHPOWER_DEFAULT;
 #define hashsize(n) ((ub4)1<<(n))
 #define hashmask(n) (hashsize(n)-1)
 
-#ifndef CLHT
+#ifndef NVM
 
 static pthread_cond_t maintenance_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t maintenance_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -62,11 +62,11 @@ static bool started_expanding = false;
  */
 static unsigned int expand_bucket = 0;
 
-void assoc_init(const int hashtable_init) {
+void assoc_init(const int hashtable_init, int num_threads) {
     if (hashtable_init) {
         hashpower = hashtable_init;
     }
-    primary_hashtable = calloc(hashsize(hashpower), sizeof(void *));
+    primary_hashtable = (item**)calloc(hashsize(hashpower), sizeof(void *));
     if (! primary_hashtable) {
         fprintf(stderr, "Failed to init hashtable.\n");
         exit(EXIT_FAILURE);
@@ -128,7 +128,7 @@ static item** _hashitem_before (const char *key, const size_t nkey, const uint32
 static void assoc_expand(void) {
     old_hashtable = primary_hashtable;
 
-    primary_hashtable = calloc(hashsize(hashpower + 1), sizeof(void *));
+    primary_hashtable = (item**)calloc(hashsize(hashpower + 1), sizeof(void *));
     if (primary_hashtable) {
         if (settings.verbose > 1)
             fprintf(stderr, "Hash table expansion starting\n");
@@ -307,17 +307,28 @@ void stop_assoc_maintenance_thread() {
     pthread_join(maintenance_tid, NULL);
 }
 
-#else // #ifndef CLHT
+#else // #ifndef NVM
 
-static clht_t* hashtable = NULL;
-static __thread ssmem_allocator_t* obj_alloc = NULL;
+// static clht_t* hashtable = NULL;
+// static __thread ssmem_allocator_t* obj_alloc = NULL;
+static ht_intset_t* hashtable = NULL;
+static linkcache_t* lc = NULL;
+static __thread EpochThread epoch = NULL;
+static __thread active_page_table_t* page_table = NULL;
 
-void assoc_init(const int hashtable_init) {
+void assoc_init(const int hashtable_init, int num_threads) {
     if (hashtable_init) {
         hashpower = hashtable_init;
     }
 
-    hashtable = clht_create(hashsize(hashpower));
+    lc = cache_create();
+    EpochGlobalInit(lc);
+
+    EpochThread epoch = EpochThreadInit(num_threads);
+
+    // hashtable = clht_create(hashsize(hashpower));
+    hashtable = ht_new(epoch, hashsize(hashpower));
+
     if (!hashtable) {
         fprintf(stderr, "Failed to init hashtable.\n");
         exit(EXIT_FAILURE);
@@ -332,18 +343,22 @@ void assoc_init(const int hashtable_init) {
 
 /* This function needs to be called by the worker threads before they start working */
 void assoc_thread_init(int thread_id) {
-    clht_gc_thread_init(hashtable, thread_id);
-    obj_alloc = (ssmem_allocator_t*)malloc(sizeof(ssmem_allocator_t));
-    if (!obj_alloc) {
-        fprintf(stderr, "Failed to init clht object allocator.\n");
-        exit(EXIT_FAILURE);
-    }
-    ssmem_alloc_init_fs_size(obj_alloc, SSMEM_DEFAULT_MEM_SIZE, SSMEM_GC_FREE_SET_SIZE, thread_id);
+
+    epoch =  EpochThreadInit(thread_id);
+    page_table = (active_page_table_t*)GetOpaquePageBuffer(epoch);
+    // clht_gc_thread_init(hashtable, thread_id);
+    // obj_alloc = (ssmem_allocator_t*)malloc(sizeof(ssmem_allocator_t));
+    // if (!obj_alloc) {
+    //     fprintf(stderr, "Failed to init clht object allocator.\n");
+    //     exit(EXIT_FAILURE);
+    // }
+    // ssmem_alloc_init_fs_size(obj_alloc, SSMEM_DEFAULT_MEM_SIZE, SSMEM_GC_FREE_SET_SIZE, thread_id);
 }
 
 item* assoc_find(const char* key, const size_t nkey, const uint32_t hv) {
-    clht_val_t res = clht_get(hashtable->ht, hv, key, nkey);
-    
+
+    // clht_val_t res = clht_get(hashtable->ht, hv, key, nkey);
+    svalue_t res = ht_contains(hashtable, hv, key, nkey, epoch, lc); 
     item* it = (item*)res;
     if (res) {
         assert(nkey == it->nkey);
@@ -354,37 +369,38 @@ item* assoc_find(const char* key, const size_t nkey, const uint32_t hv) {
 }
 
 int assoc_insert(item* it, const uint32_t hv) {
-    void* ptr = ssmem_alloc(obj_alloc, sizeof(void*));
-    ptr = it;
+    // void* ptr = ssmem_alloc(obj_alloc, sizeof(void*));
+    // ptr = it;
 
-    int success = clht_put(hashtable, (clht_addr_t)hv, (clht_val_t)ptr);
+    int success = ht_add(hashtable, (skey_t)hv, (svalue_t)it, 0, epoch, lc);
 
-    if (!success) {
-        ssmem_free(obj_alloc, ptr);
-    }
+    // if (!success) {
+    //     ssmem_free(obj_alloc, ptr);
+    // }
     return success;
 }
 
 /* Returns the old item if it exists */
 item* assoc_replace(item* it, const uint32_t hv) {
-    void* ptr = ssmem_alloc(obj_alloc, sizeof(void*));
-    ptr = it;
+    // void* ptr = ssmem_alloc(obj_alloc, sizeof(void*));
+    // ptr = it;
 
-    clht_val_t res = clht_set(hashtable, (clht_addr_t)hv, (clht_val_t)ptr);
+    svalue_t res = ht_add(hashtable, (skey_t)hv, (svalue_t)it, 1, epoch, lc);
 
     if (res) {
         item* old_it = (item*)res;
         assert(old_it->nkey == it->nkey);
         assert(memcmp(ITEM_key(old_it), ITEM_key(it), old_it->nkey) == 0);
 
-        ssmem_free(obj_alloc, (void*)res);
+        // ssmem_free(obj_alloc, (void*)res);
         return old_it;
     }
     return NULL;
 }
 
 int assoc_delete(const char* key, const size_t nkey, const uint32_t hv) {
-    clht_val_t res = clht_remove(hashtable, hv, key, nkey);
+    // clht_val_t res = clht_remove(hashtable, hv, key, nkey);
+    svalue_t res = ht_remove(hashtable, (skey_t)hv, key, nkey, epoch, lc);
 
     if (res) {
         item* it = (item*)res;
@@ -392,7 +408,7 @@ int assoc_delete(const char* key, const size_t nkey, const uint32_t hv) {
         assert(memcmp(key, ITEM_key(it), nkey) == 0);
         (void)it;
 
-        ssmem_free(obj_alloc, (void*)res);
+        // ssmem_free(obj_alloc, (void*)res);
         return 1;
     }
     return 0;

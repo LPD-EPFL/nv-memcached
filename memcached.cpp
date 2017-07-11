@@ -262,7 +262,7 @@ static int add_msghdr(conn *c)
     assert(c != NULL);
 
     if (c->msgsize == c->msgused) {
-        msg = realloc(c->msglist, c->msgsize * 2 * sizeof(struct msghdr));
+        msg = (msghdr*)realloc(c->msglist, c->msgsize * 2 * sizeof(struct msghdr));
         if (! msg) {
             STATS_LOCK();
             stats.malloc_fails++;
@@ -327,7 +327,7 @@ static void conn_init(void) {
 
     close(next_fd);
 
-    if ((conns = calloc(max_fds, sizeof(conn *))) == NULL) {
+    if ((conns = (conn**)calloc(max_fds, sizeof(conn *))) == NULL) {
         fprintf(stderr, "Failed to allocate connection structures\n");
         /* This is unrecoverable so bail out early. */
         exit(1);
@@ -494,8 +494,8 @@ static void conn_release_items(conn *c) {
     assert(c != NULL);
 
     if (c->item) {
-#ifndef CLHT
-        item_remove(c->item);
+#ifndef NVM
+        item_remove((item*)c->item);
 #else
         // Can we get here if there is an error and our newly allocated item
         // is in c->item? Cleanup just in case, but check that the item is
@@ -511,7 +511,7 @@ static void conn_release_items(conn *c) {
     while (c->ileft > 0) {
         item *it = *(c->icurr);
         assert((it->it_flags & ITEM_SLABBED) == 0);
-#ifndef CLHT
+#ifndef NVM
         item_remove(it);
 #else
         item_release(it);
@@ -905,7 +905,7 @@ static void out_of_memory(conn *c, char *ascii_error) {
 static void complete_nread_ascii(conn *c) {
     assert(c != NULL);
 
-    item *it = c->item;
+    item *it = (item*)c->item;
     int comm = c->cmd;
     enum store_item_type ret = NOT_STORED;
 
@@ -967,8 +967,8 @@ static void complete_nread_ascii(conn *c) {
 
     }
 
-#ifndef CLHT
-    item_remove(c->item);       /* release the c->item reference */
+#ifndef NVM
+    item_remove((item*)c->item);       /* release the c->item reference */
 #else
     // If we failed to store the item, we should free it since we
     // allocated it and hold the only reference.
@@ -1129,7 +1129,7 @@ static void complete_incr_bin(conn *c) {
     uint64_t cas = 0;
 
     protocol_binary_response_incr* rsp = (protocol_binary_response_incr*)c->wbuf;
-    protocol_binary_request_incr* req = binary_get_request(c);
+    protocol_binary_request_incr* req = (protocol_binary_request_incr*)binary_get_request(c);
 
     assert(c != NULL);
     assert(c->wsize >= sizeof(*rsp));
@@ -1224,7 +1224,7 @@ static void complete_update_bin(conn *c) {
     enum store_item_type ret = NOT_STORED;
     assert(c != NULL);
 
-    item *it = c->item;
+    item *it = (item*)c->item;
 
     pthread_mutex_lock(&c->thread->stats.mutex);
     c->thread->stats.slab_stats[ITEM_clsid(it)].set_cmds++;
@@ -1285,8 +1285,8 @@ static void complete_update_bin(conn *c) {
         write_bin_error(c, eno, NULL, 0);
     }
 
-#ifndef CLHT
-    item_remove(c->item);       /* release the c->item reference */
+#ifndef NVM
+    item_remove((item*)c->item);       /* release the c->item reference */
 #else
     // If we failed to store the item, we should free it since we
     // allocated it and hold the only reference.
@@ -1316,7 +1316,7 @@ static void process_bin_get_or_touch(conn *c) {
     }
 
     if (should_touch) {
-        protocol_binary_request_touch *t = binary_get_request(c);
+        protocol_binary_request_touch *t = (protocol_binary_request_touch *)binary_get_request(c);
         time_t exptime = ntohl(t->message.body.expiration);
 
         it = item_touch(key, nkey, realtime(exptime));
@@ -1375,7 +1375,7 @@ static void process_bin_get_or_touch(conn *c) {
         c->write_and_go = conn_new_cmd;
 
         /* Remember this command so we can garbage collect it later */
-#ifndef CLHT
+#ifndef NVM
         c->item = it;
 #else
         *(c->ilist) = it;
@@ -1427,14 +1427,14 @@ static void append_bin_stats(const char *key, const uint16_t klen,
                              conn *c) {
     char *buf = c->stats.buffer + c->stats.offset;
     uint32_t bodylen = klen + vlen;
-    protocol_binary_response_header header = {
-        .response.magic = (uint8_t)PROTOCOL_BINARY_RES,
-        .response.opcode = PROTOCOL_BINARY_CMD_STAT,
-        .response.keylen = (uint16_t)htons(klen),
-        .response.datatype = (uint8_t)PROTOCOL_BINARY_RAW_BYTES,
-        .response.bodylen = htonl(bodylen),
-        .response.opaque = c->opaque
-    };
+    protocol_binary_response_header header;
+    header.response.magic = (uint8_t)PROTOCOL_BINARY_RES;
+    header.response.opcode = PROTOCOL_BINARY_CMD_STAT;
+    header.response.keylen = (uint16_t)htons(klen);
+    header.response.datatype = (uint8_t)PROTOCOL_BINARY_RAW_BYTES;
+    header.response.bodylen = htonl(bodylen);
+    header.response.opaque = c->opaque;
+    
 
     memcpy(buf, header.bytes, sizeof(header.response));
     buf += sizeof(header.response);
@@ -1488,7 +1488,7 @@ static bool grow_stats_buf(conn *c, size_t needed) {
     }
 
     if (nsize != c->stats.size) {
-        char *ptr = realloc(c->stats.buffer, nsize);
+        char *ptr = (char *)realloc(c->stats.buffer, nsize);
         if (ptr) {
             c->stats.buffer = ptr;
             c->stats.size = nsize;
@@ -1617,7 +1617,7 @@ static void bin_read_key(conn *c, enum bin_substates next_substate, int extra) {
                 fprintf(stderr, "%d: Need to grow buffer from %lu to %lu\n",
                         c->sfd, (unsigned long)c->rsize, (unsigned long)nsize);
             }
-            char *newm = realloc(c->rbuf, nsize);
+            char *newm = (char *)realloc(c->rbuf, nsize);
             if (newm == NULL) {
                 STATS_LOCK();
                 stats.malloc_fails++;
@@ -1793,7 +1793,7 @@ static void process_bin_complete_sasl_auth(conn *c) {
         break;
     }
 
-    item_unlink(c->item);
+    item_unlink((item*)c->item);
 
     if (settings.verbose) {
         fprintf(stderr, "sasl result code:  %d\n", result);
@@ -1802,7 +1802,7 @@ static void process_bin_complete_sasl_auth(conn *c) {
     switch(result) {
     case SASL_OK:
         c->authenticated = true;
-        write_bin_response(c, "Authenticated", 0, 0, strlen("Authenticated"));
+        write_bin_response(c, (void*)"Authenticated", 0, 0, strlen("Authenticated"));
         pthread_mutex_lock(&c->thread->stats.mutex);
         c->thread->stats.auth_cmds++;
         pthread_mutex_unlock(&c->thread->stats.mutex);
@@ -1921,7 +1921,7 @@ static void dispatch_bin_command(conn *c) {
     switch (c->cmd) {
         case PROTOCOL_BINARY_CMD_VERSION:
             if (extlen == 0 && keylen == 0 && bodylen == 0) {
-                write_bin_response(c, VERSION, 0, 0, strlen(VERSION));
+                write_bin_response(c, (void*)VERSION, 0, 0, strlen(VERSION));
             } else {
                 protocol_error = 1;
             }
@@ -2040,7 +2040,7 @@ static void process_bin_update(conn *c) {
     int nkey;
     int vlen;
     item *it;
-    protocol_binary_request_set* req = binary_get_request(c);
+    protocol_binary_request_set* req = (protocol_binary_request_set*)binary_get_request(c);
 
     assert(c != NULL);
 
@@ -2090,7 +2090,7 @@ static void process_bin_update(conn *c) {
             it = item_get(key, nkey);
             if (it) {
                 item_unlink(it);
-#ifndef CLHT
+#ifndef NVM
                 item_remove(it);
 #else
                 item_release(it);
@@ -2185,7 +2185,7 @@ static void process_bin_append_prepend(conn *c) {
 
 static void process_bin_flush(conn *c) {
     time_t exptime = 0;
-    protocol_binary_request_flush* req = binary_get_request(c);
+    protocol_binary_request_flush* req = (protocol_binary_request_flush*)binary_get_request(c);
     rel_time_t new_oldest = 0;
 
     if (!settings.flush_enabled) {
@@ -2221,7 +2221,7 @@ static void process_bin_flush(conn *c) {
 static void process_bin_delete(conn *c) {
     item *it;
 
-    protocol_binary_request_delete* req = binary_get_request(c);
+    protocol_binary_request_delete* req = (protocol_binary_request_delete*)binary_get_request(c);
 
     char* key = binary_get_key(c);
     size_t nkey = c->binary_header.request.keylen;
@@ -2254,7 +2254,7 @@ static void process_bin_delete(conn *c) {
         } else {
             write_bin_error(c, PROTOCOL_BINARY_RESPONSE_KEY_EEXISTS, NULL, 0);
         }
-#ifndef CLHT
+#ifndef NVM
         item_remove(it);      /* release our reference */
 #else
         item_release(it);
@@ -2315,8 +2315,8 @@ static void reset_cmd_handler(conn *c) {
     c->cmd = -1;
     c->substate = bin_no_state;
     if(c->item != NULL) {
-#ifndef CLHT
-        item_remove(c->item);
+#ifndef NVM
+        item_remove((item*)c->item);
 #else
         // Can we get here if there is an error and our newly allocated item
         // is in c->item? Cleanup just in case, but check that the item is
@@ -2448,7 +2448,7 @@ enum store_item_type do_store_item(item *it, int comm, conn *c, const uint32_t h
         }
 
         if (stored == NOT_STORED) {
-#ifndef CLHT
+#ifndef NVM
             if (old_it != NULL)                // set
                 item_replace(old_it, it, hv);
             else                               // set or add
@@ -2475,7 +2475,7 @@ enum store_item_type do_store_item(item *it, int comm, conn *c, const uint32_t h
     }
 
     if (old_it != NULL)
-#ifndef CLHT
+#ifndef NVM
         do_item_remove(old_it);         /* release our reference */
 #else
         do_item_release(old_it);
@@ -2771,7 +2771,7 @@ static void conn_to_str(const conn *c, char *buf) {
     } else {
         const char *protoname = "?";
         struct sockaddr_in6 local_addr;
-        struct sockaddr *addr = (void *)&c->request_addr;
+        struct sockaddr *addr = (sockaddr *)&c->request_addr;
         int af;
         unsigned short port = 0;
 
@@ -2965,7 +2965,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             if(nkey > KEY_MAX_LENGTH) {
                 out_string(c, "CLIENT_ERROR bad command line format");
                 while (i-- > 0) {
-#ifndef CLHT
+#ifndef NVM
                     item_remove(*(c->ilist + i));
 #else
                     item_release(*(c->ilist + i));
@@ -2980,7 +2980,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             }
             if (it) {
                 if (i >= c->isize) {
-                    item **new_list = realloc(c->ilist, sizeof(item *) * c->isize * 2);
+                    item **new_list = (item **)realloc(c->ilist, sizeof(item *) * c->isize * 2);
                     if (new_list) {
                         c->isize *= 2;
                         c->ilist = new_list;
@@ -2988,7 +2988,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         STATS_LOCK();
                         stats.malloc_fails++;
                         STATS_UNLOCK();
-#ifndef CLHT
+#ifndef NVM
                         item_remove(it);
 #else
                         item_release(it);
@@ -3011,7 +3011,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                                         it->nbytes, ITEM_get_cas(it));
                   /* Goofy mid-flight realloc. */
                   if (i >= c->suffixsize) {
-                    char **new_suffix_list = realloc(c->suffixlist,
+                    char **new_suffix_list = (char **)realloc(c->suffixlist,
                                            sizeof(char *) * c->suffixsize * 2);
                     if (new_suffix_list) {
                         c->suffixsize *= 2;
@@ -3020,7 +3020,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                         STATS_LOCK();
                         stats.malloc_fails++;
                         STATS_UNLOCK();
-#ifndef CLHT
+#ifndef NVM
                         item_remove(it);
 #else
                         item_release(it);
@@ -3029,13 +3029,13 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     }
                   }
 
-                  suffix = cache_alloc(c->thread->suffix_cache);
+                  suffix = (char*)cache_alloc(c->thread->suffix_cache);
                   if (suffix == NULL) {
                       STATS_LOCK();
                       stats.malloc_fails++;
                       STATS_UNLOCK();
                       out_of_memory(c, "SERVER_ERROR out of memory making CAS suffix");
-#ifndef CLHT
+#ifndef NVM
                       item_remove(it);
                       while (i-- > 0) {
                           item_remove(*(c->ilist + i));
@@ -3058,7 +3058,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                       add_iov(c, suffix, suffix_len) != 0 ||
                       add_iov(c, ITEM_data(it), it->nbytes) != 0)
                       {
-#ifndef CLHT
+#ifndef NVM
                           item_remove(it);
 #else
                           item_release(it);
@@ -3074,7 +3074,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                       add_iov(c, ITEM_key(it), it->nkey) != 0 ||
                       add_iov(c, ITEM_suffix(it), it->nsuffix + it->nbytes) != 0)
                       {
-#ifndef CLHT
+#ifndef NVM
                           item_remove(it);
 #else
                           item_release(it);
@@ -3222,7 +3222,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
             it = item_get(key, nkey);
             if (it) {
                 item_unlink(it);
-#ifndef CLHT
+#ifndef NVM
                 item_remove(it);
 #else
                 item_release(it);
@@ -3273,7 +3273,7 @@ static void process_touch_command(conn *c, token_t *tokens, const size_t ntokens
         pthread_mutex_unlock(&c->thread->stats.mutex);
 
         out_string(c, "TOUCHED");
-#ifndef CLHT
+#ifndef NVM
         item_remove(it);
 #else
         item_release(it);
@@ -3485,7 +3485,7 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
         pthread_mutex_unlock(&c->thread->stats.mutex);
 
         item_unlink(it);
-#ifndef CLHT
+#ifndef NVM
         item_remove(it);      /* release our reference */
 #else
         item_release(it);
@@ -3875,7 +3875,7 @@ static int try_read_command(conn *c) {
         if (c->rbytes == 0)
             return 0;
 
-        el = memchr(c->rcurr, '\n', c->rbytes);
+        el = (char*)memchr(c->rcurr, '\n', c->rbytes);
         if (!el) {
             if (c->rbytes > 1024) {
                 /*
@@ -3985,7 +3985,7 @@ static enum try_read_result try_read_network(conn *c) {
                 return gotdata;
             }
             ++num_allocs;
-            char *new_rbuf = realloc(c->rbuf, c->rsize * 2);
+            char *new_rbuf = (char *)realloc(c->rbuf, c->rsize * 2);
             if (!new_rbuf) {
                 STATS_LOCK();
                 stats.malloc_fails++;
@@ -5334,7 +5334,7 @@ int main (int argc, char **argv) {
         case 'l':
             if (settings.inter != NULL) {
                 size_t len = strlen(settings.inter) + strlen(optarg) + 2;
-                char *p = malloc(len);
+                char *p = (char*)malloc(len);
                 if (p == NULL) {
                     fprintf(stderr, "Failed to allocate memory\n");
                     return 1;
@@ -5741,10 +5741,10 @@ int main (int argc, char **argv) {
 
     /* initialize other stuff */
     stats_init();
-    assoc_init(settings.hashpower_init);
+    assoc_init(settings.hashpower_init, settings.num_threads);
     conn_init();
     slabs_init(settings.maxbytes, settings.factor, preallocate);
-#ifdef CLHT
+#ifdef NVM
     item_gc_init(settings.free_list_size_limit, settings.num_threads);
 #endif
 

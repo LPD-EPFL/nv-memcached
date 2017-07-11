@@ -1,0 +1,10 @@
+make all-recursive make[1]: Entering directory '/home/zablotch/nv-memcached' Making all in doc make[2]: 
+Entering directory '/home/zablotch/nv-memcached/doc' make all-am make[3]: Entering directory 
+'/home/zablotch/nv-memcached/doc' make[3]: Nothing to be done for 'all-am'. make[3]: Leaving directory 
+'/home/zablotch/nv-memcached/doc' make[2]: Leaving directory '/home/zablotch/nv-memcached/doc' make[2]: 
+Entering directory '/home/zablotch/nv-memcached' g++ -DHAVE_CONFIG_H -I.  -DNDEBUG -Wall 
+-Wmissing-declarations -Wredundant-decls -g -O2 -MT memcached-memcached.o -MD -MP -MF 
+.deps/memcached-memcached.Tpo -c -o memcached-memcached.o `test -f 'memcached.cpp' || echo 
+'./'`memcached.cpp Makefile:683: recipe for target 'memcached-memcached.o' failed make[2]: Leaving 
+directory '/home/zablotch/nv-memcached' Makefile:948: recipe for target 'all-recursive' failed make[1]: 
+Leaving directory '/home/zablotch/nv-memcached' Makefile:491: recipe for target 'all' failed
