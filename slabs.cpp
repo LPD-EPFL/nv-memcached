@@ -23,7 +23,7 @@
 
 /* powers-of-N allocation structures */
 
-typedef struct {
+struct _slabclass {
     unsigned int size;      /* sizes of items */
     unsigned int perslab;   /* how many items per slab */
 
@@ -32,7 +32,11 @@ typedef struct {
 
     unsigned int slabs;     /* how many slabs were allocated for this class */
 
+#ifdef NVM
+    TOID(void_p) slab_list;
+#else
     void **slab_list;       /* array of slab pointers */
+#endif
     unsigned int list_size; /* size of prev array */
 
     unsigned int killing;  /* index+1 of dying slab, or zero if none */
@@ -42,19 +46,35 @@ typedef struct {
     char* bitmap;             /* bit per slot for clock alg. */
     unsigned int clock_hand;  /* current slot for clock alg. */
 #endif
-} slabclass_t;
+};
 
-static slabclass_t slabclass[MAX_NUMBER_OF_SLAB_CLASSES];
-static size_t mem_limit = 0;
-static size_t mem_malloced = 0;
-/* If the memory limit has been hit once. Used as a hint to decide when to
- * early-wake the LRU maintenance thread */
-static bool mem_limit_reached = false;
-static int power_largest;
+struct slab_root {
+    slabclass_t slabclass[MAX_NUMBER_OF_SLAB_CLASSES];
+    size_t mem_limit = 0;
+    size_t mem_malloced = 0;
+    /* If the memory limit has been hit once. Used as a hint to decide when to
+     * early-wake the LRU maintenance thread */
+    bool mem_limit_reached = false;
+    int power_largest;
 
-static void *mem_base = NULL;
-static void *mem_current = NULL;
-static size_t mem_avail = 0;
+    void *mem_base = NULL;
+    void *mem_current = NULL;
+    size_t mem_avail = 0;
+};
+
+static slab_root* root;
+static PMEMobjpool *pop = NULL;
+// static slabclass_t slabclass[MAX_NUMBER_OF_SLAB_CLASSES];
+// static size_t root->mem_limit = 0;
+// static size_t mem_malloced = 0;
+//  If the memory limit has been hit once. Used as a hint to decide when to
+//  * early-wake the LRU maintenance thread 
+// static bool root->mem_limit_reached = false;
+// static int power_largest;
+
+// static void *mem_base = NULL;
+// static void *mem_current = NULL;
+// static size_t mem_avail = 0;
 
 /**
  * Access to the slab allocator is protected by this lock
@@ -90,8 +110,8 @@ unsigned int slabs_clsid(const size_t size) {
 
     if (size == 0)
         return 0;
-    while (size > slabclass[res].size)
-        if (res++ == power_largest)     /* won't fit in the biggest slab */
+    while (size > root->slabclass[res].size)
+        if (res++ == root->power_largest)     /* won't fit in the biggest slab */
             return 0;
     return res;
 }
@@ -101,98 +121,131 @@ unsigned int slabs_clsid(const size_t size) {
  * accordingly.
  */
 void slabs_init(const size_t limit, const double factor, const bool prealloc) {
+
     int i = POWER_SMALLEST - 1;
     unsigned int size = sizeof(item) + settings.chunk_size;
 
-    mem_limit = limit;
+    // Start setting up pmemobj pool
+    char path[32];
+    sprintf(path, "/tmp/slabs");
 
-    if (prealloc) {
-        /* Allocate everything in a big chunk with malloc */
-        mem_base = malloc(mem_limit);
-        if (mem_base != NULL) {
-            mem_current = mem_base;
-            mem_avail = mem_limit;
-        } else {
-            fprintf(stderr, "Warning: Failed to allocate requested memory in"
-                    " one large chunk.\nWill allocate in smaller chunks\n");
+    remove(path);
+
+    if (access(path, F_OK) != 0) {
+        if ((pop = pmemobj_create(path, POBJ_LAYOUT_NAME(slabs),
+            SLABS_POOL_SIZE, S_IWUSR | S_IRUSR)) == NULL) {
+            printf("failed to create pool1 wiht name %s\n", path);
+            return;
         }
+    } else {
+      if ((pop = pmemobj_open(path, POBJ_LAYOUT_NAME(slabs))) == NULL) {
+          printf("failed to open pool with name %s\n", path);
+          return;
+      }
     }
 
-    memset(slabclass, 0, sizeof(slabclass));
+    TOID(struct slab_root) _root = POBJ_ROOT(pop, struct slab_root);
+    root = D_RW(_root);
+    // Done setting up pmemobj pool
 
-    while (++i < MAX_NUMBER_OF_SLAB_CLASSES-1 && size <= settings.item_size_max / factor) {
-        /* Make sure items are always n-byte aligned */
-        if (size % CHUNK_ALIGN_BYTES)
-            size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
+    TX_BEGIN(pop) {
+        TX_ADD_DIRECT(root);
+        root->mem_limit = limit;
 
-        slabclass[i].size = size;
-        slabclass[i].perslab = settings.item_size_max / slabclass[i].size;
-        size *= factor;
+
+        if (prealloc) {
+            /* Allocate everything in a big chunk with malloc */
+            root->mem_base = (void*)D_RW(TX_ALLOC(char, root->mem_limit));
+            if (root->mem_base != NULL) {
+                root->mem_current = root->mem_base;
+                root->mem_avail = root->mem_limit;
+            } else {
+                fprintf(stderr, "Warning: Failed to allocate requested memory in"
+                        " one large chunk.\nWill allocate in smaller chunks\n");
+            }
+        }
+
+        TX_MEMSET(root->slabclass, 0, sizeof(root->slabclass));
+
+        while (++i < MAX_NUMBER_OF_SLAB_CLASSES-1 && size <= settings.item_size_max / factor) {
+            /* Make sure items are always n-byte aligned */
+            if (size % CHUNK_ALIGN_BYTES)
+                size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
+
+            root->slabclass[i].size = size;
+            root->slabclass[i].perslab = settings.item_size_max / root->slabclass[i].size;
+            size *= factor;
+            if (settings.verbose > 1) {
+                fprintf(stderr, "slab class %3d: chunk size %9u perslab %7u\n",
+                        i, root->slabclass[i].size, root->slabclass[i].perslab);
+            }
+        }
+
+        root->power_largest = i;
+        root->slabclass[root->power_largest].size = settings.item_size_max;
+        root->slabclass[root->power_largest].perslab = 1;
         if (settings.verbose > 1) {
             fprintf(stderr, "slab class %3d: chunk size %9u perslab %7u\n",
-                    i, slabclass[i].size, slabclass[i].perslab);
-        }
-    }
-
-    power_largest = i;
-    slabclass[power_largest].size = settings.item_size_max;
-    slabclass[power_largest].perslab = 1;
-    if (settings.verbose > 1) {
-        fprintf(stderr, "slab class %3d: chunk size %9u perslab %7u\n",
-                i, slabclass[i].size, slabclass[i].perslab);
-    }
-
-    /* for the test suite:  faking of how much we've already malloc'd */
-    {
-        char *t_initial_malloc = getenv("T_MEMD_INITIAL_MALLOC");
-        if (t_initial_malloc) {
-            mem_malloced = (size_t)atol(t_initial_malloc);
+                    i, root->slabclass[i].size, root->slabclass[i].perslab);
         }
 
-    }
+        /* for the test suite:  faking of how much we've already malloc'd */
+        {
+            char *t_initial_malloc = getenv("T_MEMD_INITIAL_MALLOC");
+            if (t_initial_malloc) {
+                root->mem_malloced = (size_t)atol(t_initial_malloc);
+            }
 
-    if (prealloc) {
-        slabs_preallocate(power_largest);
-    }
+        }
+
+        if (prealloc) {
+            slabs_preallocate(root->power_largest);
+        }
+    } TX_END
+
 }
 
 static void slabs_preallocate (const unsigned int maxslabs) {
-    int i;
-    unsigned int prealloc = 0;
+    TX_BEGIN(pop) {
+        int i;
+        unsigned int prealloc = 0;
 
-    /* pre-allocate a 1MB slab in every size class so people don't get
-       confused by non-intuitive "SERVER_ERROR out of memory"
-       messages.  this is the most common question on the mailing
-       list.  if you really don't want this, you can rebuild without
-       these three lines.  */
+        /* pre-allocate a 1MB slab in every size class so people don't get
+           confused by non-intuitive "SERVER_ERROR out of memory"
+           messages.  this is the most common question on the mailing
+           list.  if you really don't want this, you can rebuild without
+           these three lines.  */
 
-    for (i = POWER_SMALLEST; i < MAX_NUMBER_OF_SLAB_CLASSES; i++) {
-        if (++prealloc > maxslabs)
-            return;
-        if (do_slabs_newslab(i) == 0) {
-            fprintf(stderr, "Error while preallocating slab memory!\n"
-                "If using -L or other prealloc options, max memory must be "
-                "at least %d megabytes.\n", power_largest);
-            exit(1);
+        for (i = POWER_SMALLEST; i < MAX_NUMBER_OF_SLAB_CLASSES; i++) {
+            if (++prealloc > maxslabs)
+                return;
+            if (do_slabs_newslab(i) == 0) {
+                fprintf(stderr, "Error while preallocating slab memory!\n"
+                    "If using -L or other prealloc options, max memory must be "
+                    "at least %d megabytes.\n", root->power_largest);
+                exit(1);
+            }
         }
-    }
-
+    } TX_END
 }
 
 static int grow_slab_list (const unsigned int id) {
-    slabclass_t *p = &slabclass[id];
-    if (p->slabs == p->list_size) {
-        size_t new_size =  (p->list_size != 0) ? p->list_size * 2 : 16;
-        void *new_list = realloc(p->slab_list, new_size * sizeof(void *));
-        if (new_list == 0) return 0;
-        p->list_size = new_size;
-        p->slab_list = (void **)new_list;
-    }
-    return 1;
+    TX_BEGIN(pop) {
+        slabclass_t *p = &root->slabclass[id];
+        if (p->slabs == p->list_size) {
+            size_t new_size =  (p->list_size != 0) ? p->list_size * 2 : 16;
+            TOID(void_p) new_list = TX_REALLOC(p->slab_list, new_size * sizeof(void *));
+            if (TOID_IS_NULL(new_list)) return 0;
+            p->list_size = new_size;
+            p->slab_list = new_list;
+        }
+        return 1;
+        
+    } TX_END
 }
 
 static void split_slab_page_into_freelist(char *ptr, const unsigned int id) {
-    slabclass_t *p = &slabclass[id];
+    slabclass_t *p = &root->slabclass[id];
     int x;
     for (x = 0; x < p->perslab; x++) {
         do_slabs_free(ptr, 0, id);
@@ -203,7 +256,7 @@ static void split_slab_page_into_freelist(char *ptr, const unsigned int id) {
 #ifdef NVM
 // Initial contents of bitmap don't matter, since we set bit when item is used
 static int clock_grow_bitmap(const unsigned int id) {
-    slabclass_t* p = &slabclass[id];
+    slabclass_t* p = &root->slabclass[id];
     unsigned int total_slots = (p->slabs + 1) * p->perslab; //nakon ove fje se slabs inkr
     unsigned int bitmap_size = (total_slots + 7) / 8;
 
@@ -221,7 +274,7 @@ static int clock_grow_bitmap(const unsigned int id) {
 }
 
 static void set_item_indices(char *ptr, const unsigned int id) {
-    slabclass_t* p = &slabclass[id];
+    slabclass_t* p = &root->slabclass[id];
     unsigned int current_items = p->slabs * p->perslab;
 
     int i;
@@ -234,13 +287,13 @@ static void set_item_indices(char *ptr, const unsigned int id) {
 #endif
 
 static int do_slabs_newslab(const unsigned int id) {
-    slabclass_t *p = &slabclass[id];
+    slabclass_t *p = &root->slabclass[id];
     int len = settings.slab_reassign ? settings.item_size_max
         : p->size * p->perslab;
     char *ptr;
 
-    if ((mem_limit && mem_malloced + len > mem_limit && p->slabs > 0)) {
-        mem_limit_reached = true;
+    if ((root->mem_limit && root->mem_malloced + len > root->mem_limit && p->slabs > 0)) {
+        root->mem_limit_reached = true;
         MEMCACHED_SLABS_SLABCLASS_ALLOCATE_FAILED(id);
         return 0;
     }
@@ -261,8 +314,8 @@ static int do_slabs_newslab(const unsigned int id) {
     set_item_indices(ptr, id);
 #endif
 
-    p->slab_list[p->slabs++] = ptr;
-    mem_malloced += len;
+    D_RW(p->slab_list)[p->slabs++] = ptr;
+    root->mem_malloced += len;
     MEMCACHED_SLABS_SLABCLASS_ALLOCATE(id);
 
     return 1;
@@ -274,11 +327,11 @@ static void *do_slabs_alloc(const size_t size, unsigned int id, unsigned int *to
     void *ret = NULL;
     item *it = NULL;
 
-    if (id < POWER_SMALLEST || id > power_largest) {
+    if (id < POWER_SMALLEST || id > root->power_largest) {
         MEMCACHED_SLABS_ALLOCATE_FAILED(size, 0);
         return NULL;
     }
-    p = &slabclass[id];
+    p = &root->slabclass[id];
     assert(p->sl_curr == 0 || ((item *)p->slots)->slabs_clsid == 0);
 
     *total_chunks = p->slabs * p->perslab;
@@ -316,12 +369,12 @@ static void do_slabs_free(void *ptr, const size_t size, unsigned int id) {
     slabclass_t *p;
     item *it;
 
-    assert(id >= POWER_SMALLEST && id <= power_largest);
-    if (id < POWER_SMALLEST || id > power_largest)
+    assert(id >= POWER_SMALLEST && id <= root->power_largest);
+    if (id < POWER_SMALLEST || id > root->power_largest)
         return;
 
     MEMCACHED_SLABS_FREE(size, id, ptr);
-    p = &slabclass[id];
+    p = &root->slabclass[id];
 
     it = (item *)ptr;
     it->it_flags |= ITEM_SLABBED;
@@ -377,8 +430,8 @@ static void do_slabs_stats(ADD_STAT add_stats, void *c) {
     threadlocal_stats_aggregate(&thread_stats);
 
     total = 0;
-    for(i = POWER_SMALLEST; i <= power_largest; i++) {
-        slabclass_t *p = &slabclass[i];
+    for(i = POWER_SMALLEST; i <= root->power_largest; i++) {
+        slabclass_t *p = &root->slabclass[i];
         if (p->slabs != 0) {
             uint32_t perslab, slabs;
             slabs = p->slabs;
@@ -422,20 +475,20 @@ static void do_slabs_stats(ADD_STAT add_stats, void *c) {
     /* add overall slab stats and append terminator */
 
     APPEND_STAT("active_slabs", "%d", total);
-    APPEND_STAT("total_malloced", "%llu", (unsigned long long)mem_malloced);
+    APPEND_STAT("total_malloced", "%llu", (unsigned long long)root->mem_malloced);
     add_stats(NULL, 0, NULL, 0, c);
 }
 
 static void *memory_allocate(size_t size) {
     void *ret;
 
-    if (mem_base == NULL) {
+    if (root->mem_base == NULL) {
         /* We are not using a preallocated large memory chunk */
         ret = malloc(size);
     } else {
-        ret = mem_current;
+        ret = root->mem_current;
 
-        if (size > mem_avail) {
+        if (size > root->mem_avail) {
             return NULL;
         }
 
@@ -444,11 +497,11 @@ static void *memory_allocate(size_t size) {
             size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
         }
 
-        mem_current = ((char*)mem_current) + size;
-        if (size < mem_avail) {
-            mem_avail -= size;
+        root->mem_current = ((char*)root->mem_current) + size;
+        if (size < root->mem_avail) {
+            root->mem_avail -= size;
         } else {
-            mem_avail = 0;
+            root->mem_avail = 0;
         }
     }
 
@@ -480,12 +533,12 @@ void slabs_adjust_mem_requested(unsigned int id, size_t old, size_t ntotal)
 {
     pthread_mutex_lock(&slabs_lock);
     slabclass_t *p;
-    if (id < POWER_SMALLEST || id > power_largest) {
+    if (id < POWER_SMALLEST || id > root->power_largest) {
         fprintf(stderr, "Internal error! Invalid slab class\n");
         abort();
     }
 
-    p = &slabclass[id];
+    p = &root->slabclass[id];
     p->requested = p->requested - old + ntotal;
     pthread_mutex_unlock(&slabs_lock);
 }
@@ -496,10 +549,10 @@ unsigned int slabs_available_chunks(const unsigned int id, bool *mem_flag,
     slabclass_t *p;
 
     pthread_mutex_lock(&slabs_lock);
-    p = &slabclass[id];
+    p = &root->slabclass[id];
     ret = p->sl_curr;
     if (mem_flag != NULL)
-        *mem_flag = mem_limit_reached;
+        *mem_flag = root->mem_limit_reached;
     if (total_chunks != NULL)
         *total_chunks = p->slabs * p->perslab;
     pthread_mutex_unlock(&slabs_lock);
@@ -526,14 +579,14 @@ static inline void clock_reset_bit(char* bitmap, unsigned int index) {
 }
 
 static void* slabs_get_slot_at_index(unsigned int index, unsigned int id) {
-    slabclass_t* p = &slabclass[id];
+    slabclass_t* p = &root->slabclass[id];
 
     //assert(index < p->slabs * p->perslab);
 
     unsigned int slab_index = index / p->perslab;
     unsigned int slot_index = index % p->perslab;
 
-    char* ret = (char*)p->slab_list[slab_index] + slot_index*p->size;
+    char* ret = (char*)D_RW(p->slab_list)[slab_index] + slot_index*p->size;
 
     return (void*)ret;
 }
@@ -559,17 +612,17 @@ static short firstzero[256] = {
 
 void clock_update(item* it) {
     unsigned int id = ITEM_clsid(it);
-    assert(id >= POWER_SMALLEST && id <= power_largest);
-    if (id < POWER_SMALLEST || id > power_largest)
+    assert(id >= POWER_SMALLEST && id <= root->power_largest);
+    if (id < POWER_SMALLEST || id > root->power_largest)
         return;
 
-    slabclass_t* p = &slabclass[id];
+    slabclass_t* p = &root->slabclass[id];
 
     clock_set_bit(p->bitmap, it->slabs_index);
 }
 
 item* clock_get_victim(unsigned int id) {
-    slabclass_t* p = &slabclass[id];
+    slabclass_t* p = &root->slabclass[id];
 
     pthread_mutex_lock(&slabs_lock);
 
@@ -687,13 +740,13 @@ static int slab_rebalance_start(void) {
     pthread_mutex_lock(&slabs_lock);
 
     if (slab_rebal.s_clsid < POWER_SMALLEST ||
-        slab_rebal.s_clsid > power_largest  ||
+        slab_rebal.s_clsid > root->power_largest  ||
         slab_rebal.d_clsid < POWER_SMALLEST ||
-        slab_rebal.d_clsid > power_largest  ||
+        slab_rebal.d_clsid > root->power_largest  ||
         slab_rebal.s_clsid == slab_rebal.d_clsid)
         no_go = -2;
 
-    s_cls = &slabclass[slab_rebal.s_clsid];
+    s_cls = &root->slabclass[slab_rebal.s_clsid];
 
     if (!grow_slab_list(slab_rebal.d_clsid)) {
         no_go = -1;
@@ -709,7 +762,7 @@ static int slab_rebalance_start(void) {
 
     s_cls->killing = 1;
 
-    slab_rebal.slab_start = s_cls->slab_list[s_cls->killing - 1];
+    slab_rebal.slab_start = D_RW(s_cls->slab_list)[s_cls->killing - 1];
     slab_rebal.slab_end   = (char *)slab_rebal.slab_start +
         (s_cls->size * s_cls->perslab);
     slab_rebal.slab_pos   = slab_rebal.slab_start;
@@ -763,7 +816,7 @@ static int slab_rebalance_move(void) {
 
     pthread_mutex_lock(&slabs_lock);
 
-    s_cls = &slabclass[slab_rebal.s_clsid];
+    s_cls = &root->slabclass[slab_rebal.s_clsid];
 
     for (x = 0; x < slab_bulk_check; x++) {
         hv = 0;
@@ -871,18 +924,18 @@ static void slab_rebalance_finish(void) {
 
     pthread_mutex_lock(&slabs_lock);
 
-    s_cls = &slabclass[slab_rebal.s_clsid];
-    d_cls   = &slabclass[slab_rebal.d_clsid];
+    s_cls = &root->slabclass[slab_rebal.s_clsid];
+    d_cls   = &root->slabclass[slab_rebal.d_clsid];
 
     /* At this point the stolen slab is completely clear */
-    s_cls->slab_list[s_cls->killing - 1] =
-        s_cls->slab_list[s_cls->slabs - 1];
+    D_RW(s_cls->slab_list)[s_cls->killing - 1] =
+         D_RW(s_cls->slab_list)[s_cls->slabs - 1];
     s_cls->slabs--;
     s_cls->killing = 0;
 
     memset(slab_rebal.slab_start, 0, (size_t)settings.item_size_max);
 
-    d_cls->slab_list[d_cls->slabs++] = slab_rebal.slab_start;
+    D_RW(d_cls->slab_list)[d_cls->slabs++] = slab_rebal.slab_start;
     split_slab_page_into_freelist((char*)slab_rebal.slab_start,
         slab_rebal.d_clsid);
 
@@ -935,13 +988,13 @@ static int slab_automove_decision(int *src, int *dst) {
 
     item_stats_evictions(evicted_new);
     pthread_mutex_lock(&slabs_lock);
-    for (i = POWER_SMALLEST; i < power_largest; i++) {
-        total_pages[i] = slabclass[i].slabs;
+    for (i = POWER_SMALLEST; i < root->power_largest; i++) {
+        total_pages[i] = root->slabclass[i].slabs;
     }
     pthread_mutex_unlock(&slabs_lock);
 
     /* Find a candidate source; something with zero evicts 3+ times */
-    for (i = POWER_SMALLEST; i < power_largest; i++) {
+    for (i = POWER_SMALLEST; i < root->power_largest; i++) {
         evicted_diff = evicted_new[i] - evicted_old[i];
         if (evicted_diff == 0 && total_pages[i] > 2) {
             slab_zeroes[i]++;
@@ -1040,14 +1093,14 @@ static void *slab_rebalance_thread(void *arg) {
  */
 static int slabs_reassign_pick_any(int dst) {
     static int cur = POWER_SMALLEST - 1;
-    int tries = power_largest - POWER_SMALLEST + 1;
+    int tries = root->power_largest - POWER_SMALLEST + 1;
     for (; tries > 0; tries--) {
         cur++;
-        if (cur > power_largest)
+        if (cur > root->power_largest)
             cur = POWER_SMALLEST;
         if (cur == dst)
             continue;
-        if (slabclass[cur].slabs > 1) {
+        if (root->slabclass[cur].slabs > 1) {
             return cur;
         }
     }
@@ -1067,11 +1120,11 @@ static enum reassign_result_type do_slabs_reassign(int src, int dst) {
         /* TODO: If we end up back at -1, return a new error type */
     }
 
-    if (src < POWER_SMALLEST || src > power_largest ||
-        dst < POWER_SMALLEST || dst > power_largest)
+    if (src < POWER_SMALLEST || src > root->power_largest ||
+        dst < POWER_SMALLEST || dst > root->power_largest)
         return REASSIGN_BADCLASS;
 
-    if (slabclass[src].slabs < 2)
+    if (root->slabclass[src].slabs < 2)
         return REASSIGN_NOSPARE;
 
     slab_rebal.s_clsid = src;

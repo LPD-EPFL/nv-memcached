@@ -2,6 +2,9 @@
 #ifndef SLABS_H
 #define SLABS_H
 
+// TODO: in the future, make slabs pool size variable, according to maximum size of cache
+#define SLABS_POOL_SIZE    (10* 1024 * 1024 * 1024)
+
 /** Init the subsystem. 1st argument is the limit on no. of bytes to allocate,
     0 if no limit. 2nd argument is the growth factor; each slab will use a chunk
     size equal to the previous slab's chunk size times this factor.
@@ -53,5 +56,18 @@ enum reassign_result_type slabs_reassign(int src, int dst);
 
 void slabs_rebalancer_pause(void);
 void slabs_rebalancer_resume(void);
+
+struct _slabclass;
+typedef _slabclass slabclass_t;
+
+typedef void* void_p;
+
+POBJ_LAYOUT_BEGIN(slabs);
+POBJ_LAYOUT_ROOT(slabs, struct slab_root);
+POBJ_LAYOUT_TOID(slabs, slabclass_t);
+POBJ_LAYOUT_TOID(slabs, char);
+POBJ_LAYOUT_TOID(slabs, void_p);
+POBJ_LAYOUT_END(slabs);
+
 
 #endif
