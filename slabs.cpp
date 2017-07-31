@@ -35,6 +35,8 @@ struct _slabclass {
 #ifdef NVM
     TOID(void_p) slab_list;
 #else
+
+
     void **slab_list;       /* array of slab pointers */
 #endif
     unsigned int list_size; /* size of prev array */
@@ -43,7 +45,7 @@ struct _slabclass {
     size_t requested; /* The number of requested bytes */
 
 #ifdef NVM
-    char* bitmap;             /* bit per slot for clock alg. */
+    TOID(char) bitmap;             /* bit per slot for clock alg. */
     unsigned int clock_hand;  /* current slot for clock alg. */
 #endif
 };
@@ -64,17 +66,6 @@ struct slab_root {
 
 static slab_root* root;
 static PMEMobjpool *pop = NULL;
-// static slabclass_t slabclass[MAX_NUMBER_OF_SLAB_CLASSES];
-// static size_t root->mem_limit = 0;
-// static size_t mem_malloced = 0;
-//  If the memory limit has been hit once. Used as a hint to decide when to
-//  * early-wake the LRU maintenance thread 
-// static bool root->mem_limit_reached = false;
-// static int power_largest;
-
-// static void *mem_base = NULL;
-// static void *mem_current = NULL;
-// static size_t mem_avail = 0;
 
 /**
  * Access to the slab allocator is protected by this lock
@@ -135,12 +126,12 @@ void slabs_init(const size_t limit, const double factor, const bool prealloc) {
         if ((pop = pmemobj_create(path, POBJ_LAYOUT_NAME(slabs),
             SLABS_POOL_SIZE, S_IWUSR | S_IRUSR)) == NULL) {
             printf("failed to create pool1 wiht name %s\n", path);
-            return;
+            exit(1);
         }
     } else {
       if ((pop = pmemobj_open(path, POBJ_LAYOUT_NAME(slabs))) == NULL) {
           printf("failed to open pool with name %s\n", path);
-          return;
+          exit(1);
       }
     }
 
@@ -244,81 +235,105 @@ static int grow_slab_list (const unsigned int id) {
     } TX_END
 }
 
+static void assign_slab_ids(const unsigned int id, const size_t slab_id) {
+    TX_BEGIN(pop) {
+        slabclass_t *p = &root->slabclass[id];
+        char* ptr = (char*)D_RW(p->slab_list)[slab_id];
+        int x;
+        for (x = 0; x < p->perslab; x++) {
+            item* it = (item*) ptr;
+            it->slab = slab_id;
+            ptr += p->size;
+        }
+    } TX_END
+}
+
 static void split_slab_page_into_freelist(char *ptr, const unsigned int id) {
-    slabclass_t *p = &root->slabclass[id];
-    int x;
-    for (x = 0; x < p->perslab; x++) {
-        do_slabs_free(ptr, 0, id);
-        ptr += p->size;
-    }
+    TX_BEGIN(pop) {
+        slabclass_t *p = &root->slabclass[id];
+        int x;
+        for (x = 0; x < p->perslab; x++) {
+            do_slabs_free(ptr, 0, id);
+            ptr += p->size;
+        }
+    } TX_END
 }
 
 #ifdef NVM
 // Initial contents of bitmap don't matter, since we set bit when item is used
 static int clock_grow_bitmap(const unsigned int id) {
-    slabclass_t* p = &root->slabclass[id];
-    unsigned int total_slots = (p->slabs + 1) * p->perslab; //nakon ove fje se slabs inkr
-    unsigned int bitmap_size = (total_slots + 7) / 8;
+    TX_BEGIN(pop) {
+        slabclass_t* p = &root->slabclass[id];
+        unsigned int total_slots = (p->slabs + 1) * p->perslab; //nakon ove fje se slabs inkr
+        unsigned int bitmap_size = (total_slots + 7) / 8;
 
-    if (p->bitmap == NULL) {
-        p->bitmap = (char*)malloc(bitmap_size);
-        if (p->bitmap == NULL)
-            return 0;
-    } else {
-        char* new_bitmap = (char*)realloc(p->bitmap, bitmap_size);
-        if (new_bitmap == NULL)
-            return 0;
-        p->bitmap = new_bitmap;
-    }
-    return 1;
+        if (TOID_IS_NULL(p->bitmap)) {
+            p->bitmap = TX_ALLOC(char, bitmap_size);
+            if (TOID_IS_NULL(p->bitmap))
+                return 0;
+        } else {
+            TOID(char) new_bitmap = TX_REALLOC(p->bitmap, bitmap_size);
+            if (TOID_IS_NULL(new_bitmap))
+                return 0;
+            p->bitmap = new_bitmap;
+        }
+        return 1;
+    } TX_END
 }
 
 static void set_item_indices(char *ptr, const unsigned int id) {
-    slabclass_t* p = &root->slabclass[id];
-    unsigned int current_items = p->slabs * p->perslab;
+    TX_BEGIN(pop){
+        slabclass_t* p = &root->slabclass[id];
+        unsigned int current_items = p->slabs * p->perslab;
 
-    int i;
-    for (i = 0; i < p->perslab; i++) {
-        item* it = (item*)ptr;
-        it->slabs_index = current_items + i;
-        ptr += p->size;
-    }
+        int i;
+        for (i = 0; i < p->perslab; i++) {
+            item* it = (item*)ptr;
+            it->slabs_index = current_items + i;
+            ptr += p->size;
+        }
+    } TX_END
 }
 #endif
 
 static int do_slabs_newslab(const unsigned int id) {
-    slabclass_t *p = &root->slabclass[id];
-    int len = settings.slab_reassign ? settings.item_size_max
-        : p->size * p->perslab;
-    char *ptr;
+    TX_BEGIN(pop) {
+        slabclass_t *p = &root->slabclass[id];
+        int len = settings.slab_reassign ? settings.item_size_max
+            : p->size * p->perslab;
+        char *ptr;
 
-    if ((root->mem_limit && root->mem_malloced + len > root->mem_limit && p->slabs > 0)) {
-        root->mem_limit_reached = true;
-        MEMCACHED_SLABS_SLABCLASS_ALLOCATE_FAILED(id);
-        return 0;
-    }
+        if ((root->mem_limit && root->mem_malloced + len > root->mem_limit && p->slabs > 0)) {
+            root->mem_limit_reached = true;
+            MEMCACHED_SLABS_SLABCLASS_ALLOCATE_FAILED(id);
+            return 0;
+        }
 
-    if ((grow_slab_list(id) == 0) ||
+        if ((grow_slab_list(id) == 0) ||
 #ifdef NVM
-        (clock_grow_bitmap(id) == 0) ||
+            (clock_grow_bitmap(id) == 0) ||
 #endif
-        ((ptr = (char*)memory_allocate((size_t)len)) == 0)) {
+            ((ptr = (char*)memory_allocate((size_t)len)) == 0)) {
 
-        MEMCACHED_SLABS_SLABCLASS_ALLOCATE_FAILED(id);
-        return 0;
-    }
+            MEMCACHED_SLABS_SLABCLASS_ALLOCATE_FAILED(id);
+            return 0;
+        }
 
-    memset(ptr, 0, (size_t)len);
-    split_slab_page_into_freelist(ptr, id);
+        memset(ptr, 0, (size_t)len);
+        split_slab_page_into_freelist(ptr, id);
+        assign_slab_ids(id, p->slabs+1);
+
+
 #ifdef NVM
-    set_item_indices(ptr, id);
+        set_item_indices(ptr, id);
 #endif
 
-    D_RW(p->slab_list)[p->slabs++] = ptr;
-    root->mem_malloced += len;
-    MEMCACHED_SLABS_SLABCLASS_ALLOCATE(id);
+        D_RW(p->slab_list)[p->slabs++] = ptr;
+        root->mem_malloced += len;
+        MEMCACHED_SLABS_SLABCLASS_ALLOCATE(id);
 
-    return 1;
+        return 1;
+    } TX_END
 }
 
 /*@null@*/
@@ -342,17 +357,22 @@ static void *do_slabs_alloc(const size_t size, unsigned int id, unsigned int *to
         ret = NULL;
     } else if (p->sl_curr != 0) {
         /* return off our freelist */
-        it = (item *)p->slots;
-        p->slots = it->next;
-        if (it->next) it->next->prev = 0;
-        /* Kill flag and initialize refcount here for lock safety in slab
-         * mover's freeness detection. */
-        it->it_flags &= ~ITEM_SLABBED;
+        TX_BEGIN(pop) {
+            it = (item *)p->slots;
+            p->slots = it->next;
+            if (it->next) it->next->prev = 0;
+
+            /* Kill flag and initialize refcount here for lock safety in slab
+             * mover's freeness detection. */
+            it->it_flags &= ~ITEM_SLABBED;
 #ifndef NVM
-        it->refcount = 1;
+            it->refcount = 1;
 #endif
-        p->sl_curr--;
-        ret = (void *)it;
+
+            p->sl_curr--;
+        } TX_FINALLY {
+            ret = (void *)it;
+        } TX_END
     }
 
     if (ret) {
@@ -379,6 +399,7 @@ static void do_slabs_free(void *ptr, const size_t size, unsigned int id) {
     it = (item *)ptr;
     it->it_flags |= ITEM_SLABBED;
     it->slabs_clsid = 0;
+
     it->prev = 0;
     it->next = (item*)p->slots;
     if (it->next) it->next->prev = it;
@@ -482,29 +503,31 @@ static void do_slabs_stats(ADD_STAT add_stats, void *c) {
 static void *memory_allocate(size_t size) {
     void *ret;
 
-    if (root->mem_base == NULL) {
-        /* We are not using a preallocated large memory chunk */
-        ret = malloc(size);
-    } else {
-        ret = root->mem_current;
-
-        if (size > root->mem_avail) {
-            return NULL;
-        }
-
-        /* mem_current pointer _must_ be aligned!!! */
-        if (size % CHUNK_ALIGN_BYTES) {
-            size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
-        }
-
-        root->mem_current = ((char*)root->mem_current) + size;
-        if (size < root->mem_avail) {
-            root->mem_avail -= size;
+    TX_BEGIN(pop) {
+        if (root->mem_base == NULL) {
+            /* We are not using a preallocated large memory chunk */
+            ret = (void*)D_RW(TX_ALLOC(char, size));
         } else {
-            root->mem_avail = 0;
-        }
-    }
+            ret = root->mem_current;
 
+            if (size > root->mem_avail) {
+                return NULL;
+            }
+
+            /* mem_current pointer _must_ be aligned!!! */
+            if (size % CHUNK_ALIGN_BYTES) {
+                size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
+            }
+
+            root->mem_current = ((char*)root->mem_current) + size;
+            if (size < root->mem_avail) {
+                root->mem_avail -= size;
+            } else {
+                root->mem_avail = 0;
+            }
+        }
+
+    } TX_END 
     return ret;
 }
 
@@ -560,22 +583,22 @@ unsigned int slabs_available_chunks(const unsigned int id, bool *mem_flag,
 }
 
 #ifdef NVM
-static inline int clock_get_bit(char* bitmap, unsigned int index) {
+static inline int clock_get_bit(TOID(char) bitmap, unsigned int index) {
     unsigned int byte_index = index >> 3;  // index / 8
     char mask = 1 << (index & 7);          // index % 8
-    return bitmap[byte_index] & mask;
+    return D_RW(bitmap)[byte_index] & mask;
 }
 
-static inline void clock_set_bit(char* bitmap, unsigned int index) {
+static inline void clock_set_bit(TOID(char) bitmap, unsigned int index) {
     unsigned int byte_index = index >> 3;
     char mask = 1 << (index & 7);
-    bitmap[byte_index] |= mask;
+    D_RW(bitmap)[byte_index] |= mask;
 }
 
-static inline void clock_reset_bit(char* bitmap, unsigned int index) {
+static inline void clock_reset_bit(TOID(char) bitmap, unsigned int index) {
     unsigned int byte_index = index >> 3;
     char mask = ~(1 << (index & 7));
-    bitmap[byte_index] &= mask;
+    D_RW(bitmap)[byte_index] &= mask;
 }
 
 static void* slabs_get_slot_at_index(unsigned int index, unsigned int id) {
@@ -677,7 +700,7 @@ item* clock_get_victim(unsigned int id) {
         // Search in 64bit increments until 0 is found
         slots_left = total_slots - p->clock_hand;// - 1;
         while (slots_left >= 64) {
-            uint64_t* val64 = (uint64_t*)(p->bitmap + (p->clock_hand >> 3));
+            uint64_t* val64 = (uint64_t*)(D_RW(p->bitmap) + (p->clock_hand >> 3));
             if (*val64 == (uint64_t)-1) {
                 *val64 = 0;
                 p->clock_hand += 64;
@@ -696,7 +719,7 @@ item* clock_get_victim(unsigned int id) {
 
         // Search in byte increments until 0 is found
         while (slots_left >= 8) {
-            uint8_t* val8 = (uint8_t*)(p->bitmap + (p->clock_hand >> 3));
+            uint8_t* val8 = (uint8_t*)(D_RW(p->bitmap) + (p->clock_hand >> 3));
             if (*val8 == (uint8_t)-1) {
                 *val8 = 0;
                 p->clock_hand += 8;

@@ -85,6 +85,7 @@ typedef struct {
 
 static uint64_t* volatile timestamps;
 static __thread uint64_t* my_timestamp;
+#define MY_TIMESTAMP (*my_timestamp)
 #define ITEM_TIMESTAMP ((*my_timestamp)++)
 
 static free_list_t* current_free_list = NULL;

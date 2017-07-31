@@ -41,6 +41,7 @@ memcached_DEPENDENCIES =
 
 if USE_NV_LF
 memcached_SOURCES += atomic_ops_if.h hashtable.h hashtable.cpp \
+            active_slabs.h active_slabs.cpp \
             intset.cpp intset.h lf-linkedlist.cpp lf-linkedlist.h \
             lf-common.h common.h random.h latency.h barrier.h \
             main_test_loop.h utils.h measurements.h nv_lf_util.h nv_lf_util.cpp

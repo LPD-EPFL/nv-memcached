@@ -5741,9 +5741,9 @@ int main (int argc, char **argv) {
 
     /* initialize other stuff */
     stats_init();
+    slabs_init(settings.maxbytes, settings.factor, preallocate);
     assoc_init(settings.hashpower_init, settings.num_threads);
     conn_init();
-    slabs_init(settings.maxbytes, settings.factor, preallocate);
 #ifdef NVM
     item_gc_init(settings.free_list_size_limit, settings.num_threads);
 #endif

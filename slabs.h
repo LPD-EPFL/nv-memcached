@@ -3,7 +3,7 @@
 #define SLABS_H
 
 // TODO: in the future, make slabs pool size variable, according to maximum size of cache
-#define SLABS_POOL_SIZE    (10* 1024 * 1024 * 1024)
+#define SLABS_POOL_SIZE    (2ull * 1024 * 1024 * 1024)
 
 /** Init the subsystem. 1st argument is the limit on no. of bytes to allocate,
     0 if no limit. 2nd argument is the growth factor; each slab will use a chunk
