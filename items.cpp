@@ -76,6 +76,11 @@ static pthread_mutex_t lru_maintainer_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t cas_id_lock = PTHREAD_MUTEX_INITIALIZER;
 
 #ifdef NVM
+
+ uint64_t getMyTimestamp() { return *my_timestamp; }
+ uint64_t getMyLastCollect() { return lastCollectEpochs[my_id]; }
+ active_slab_table_t* getMySlabTable() { return slab_table; }
+
 // TODO: handle timestamp wraparound
 typedef struct {
     uint64_t* ts_snapshot;
@@ -83,10 +88,13 @@ typedef struct {
     unsigned int item_count;
 } free_list_t;
 
-static uint64_t* volatile timestamps;
-static __thread uint64_t* my_timestamp;
-#define MY_TIMESTAMP (*my_timestamp)
-#define ITEM_TIMESTAMP ((*my_timestamp)++)
+// static uint64_t* volatile timestamps;
+// static __thread uint64_t* my_timestamp;
+// #define MY_TIMESTAMP (*my_timestamp)
+// #define ITEM_TIMESTAMP ((*my_timestamp)++)
+
+// static active_slab_table_t* slab_table;
+// #define MY_SLAB_TABLE (slab_table);
 
 static free_list_t* current_free_list = NULL;
 static free_list_t* last_free_list = NULL;
@@ -113,6 +121,7 @@ void item_gc_init(unsigned int size_limit, int num_threads) {
             memset(last_free_list->ts_snapshot, 0, num_threads*sizeof(uint64_t));
     }
     timestamps = (uint64_t*) malloc(num_threads*sizeof(uint64_t));
+    lastCollectEpochs = (uint64_t*) malloc(num_threads*sizeof(uint64_t));
 
     if (!current_free_list || !current_free_list->ts_snapshot ||
         !last_free_list    || !last_free_list->ts_snapshot    || !timestamps)
@@ -124,6 +133,9 @@ void item_gc_init(unsigned int size_limit, int num_threads) {
 
 void item_gc_thread_init(int thread_id) {
     my_timestamp = &timestamps[thread_id];
+    my_id = thread_id;
+    slab_table = create_active_slab_table(thread_id);
+    printf("Thread %d done initializing. Timestamp address: %p, value %llu, slab table %p\n", my_id, my_timestamp, *my_timestamp, slab_table);
 }
 
 static void do_free_list_collect_ts_snapshot() {
@@ -155,6 +167,7 @@ static void do_free_list_try_to_swap() {
     do_free_list_collect_ts_snapshot();
     if (do_free_list_safe_to_swap()) {
         // release items from last list
+        memcpy(lastCollectEpochs, current_free_list->ts_snapshot, ts_size * sizeof(uint64_t));
         item* cur_it = last_free_list->head;
         while (cur_it != NULL) {
             assert((cur_it->it_flags & ITEM_SLABBED) == 0);
@@ -429,6 +442,7 @@ void item_free(item *it) {
     DEBUG_REFCNT(it, 'F');
     slabs_free(it, ntotal, clsid);
 #else
+    mark_slab(getMySlabTable(), it, it->slab, getMyTimestamp(), getMyLastCollect(), 1);
     free_list_insert(it);
 #endif
 }

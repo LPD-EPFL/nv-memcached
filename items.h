@@ -2,6 +2,19 @@
 uint64_t get_cas_id(void);
 
 #ifdef NVM
+
+static uint64_t* volatile timestamps;
+static uint64_t* volatile lastCollectEpochs;
+static __thread uint64_t* my_timestamp;
+static __thread int my_id;
+#define ITEM_TIMESTAMP ((*my_timestamp)++)
+static __thread active_slab_table_t* slab_table;
+
+
+ uint64_t getMyTimestamp(); 
+ uint64_t getMyLastCollect();
+ active_slab_table_t* getMySlabTable(); 
+
 void item_gc_init(unsigned int size_limit, int num_threads);
 void item_gc_thread_init(int thread_id);
 #endif

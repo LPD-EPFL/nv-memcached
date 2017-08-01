@@ -235,14 +235,14 @@ static int grow_slab_list (const unsigned int id) {
     } TX_END
 }
 
-static void assign_slab_ids(const unsigned int id, const size_t slab_id) {
+static void assign_slab_ids(const unsigned int id, const void* slab) {
     TX_BEGIN(pop) {
         slabclass_t *p = &root->slabclass[id];
-        char* ptr = (char*)D_RW(p->slab_list)[slab_id];
+        char* ptr = (char*)slab;
         int x;
         for (x = 0; x < p->perslab; x++) {
             item* it = (item*) ptr;
-            it->slab = slab_id;
+            it->slab = (void*)slab;
             ptr += p->size;
         }
     } TX_END
@@ -321,7 +321,7 @@ static int do_slabs_newslab(const unsigned int id) {
 
         memset(ptr, 0, (size_t)len);
         split_slab_page_into_freelist(ptr, id);
-        assign_slab_ids(id, p->slabs+1);
+        assign_slab_ids(id, ptr);
 
 
 #ifdef NVM
@@ -370,6 +370,11 @@ static void *do_slabs_alloc(const size_t size, unsigned int id, unsigned int *to
 #endif
 
             p->sl_curr--;
+        } TX_ONCOMMIT {
+            active_slab_table_t* my_slab_table = getMySlabTable();
+            uint64_t my_current_timestamp = getMyTimestamp();
+            uint64_t my_last_collect = getMyLastCollect();
+            mark_slab(my_slab_table, it, it->slab, my_current_timestamp, my_last_collect, 0);
         } TX_FINALLY {
             ret = (void *)it;
         } TX_END
