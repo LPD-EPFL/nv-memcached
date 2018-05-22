@@ -374,7 +374,7 @@ struct item {
     uint8_t         it_flags;   /* ITEM_* above */
     uint8_t         slabs_clsid;/* which slab class we're in */
 #ifdef NVM
-    void*          slab;       /* which slab are we in */
+    void*           slab;       /* which slab are we in */
     unsigned int    slabs_index;/* index within slab class */
 #endif
     uint8_t         nkey;       /* key length, w/terminating null and padding */

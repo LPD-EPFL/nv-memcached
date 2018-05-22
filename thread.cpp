@@ -436,7 +436,8 @@ static void thread_libevent_process(int fd, short which, void *arg) {
         break;
     /* we were told to pause and report in */
     case 'p':
-    register_thread_initialized();
+        FlushThread();
+        register_thread_initialized();
         break;
     }
 }

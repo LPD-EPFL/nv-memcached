@@ -27,6 +27,8 @@ void *slabs_alloc(const size_t size, unsigned int id, unsigned int *total_chunks
 /** Free previously allocated object */
 void slabs_free(void *ptr, size_t size, unsigned int id);
 
+void slabs_recover(active_slab_table_t** slab_tables, ht_intset_t* ht, int num_threads);
+
 /** Adjust the stats for memory requested */
 void slabs_adjust_mem_requested(unsigned int id, size_t old, size_t ntotal);
 

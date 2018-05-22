@@ -91,7 +91,8 @@ noinst_PROGRAMS = memcached-debug$(EXEEXT) sizes$(EXEEXT) \
 @USE_NV_LF_TRUE@            active_slabs.h active_slabs.cpp \
 @USE_NV_LF_TRUE@            intset.cpp intset.h lf-linkedlist.cpp lf-linkedlist.h \
 @USE_NV_LF_TRUE@            lf-common.h common.h random.h latency.h barrier.h \
-@USE_NV_LF_TRUE@            main_test_loop.h utils.h measurements.h nv_lf_util.h nv_lf_util.cpp
+@USE_NV_LF_TRUE@            main_test_loop.h utils.h measurements.h measurements.cpp \
+@USE_NV_LF_TRUE@            nv_lf_util.h nv_lf_util.cpp
 
 @USE_NV_LF_TRUE@am__append_6 = -DNVM -I$(NVRAM_PATH)/include/libnvram \
 @USE_NV_LF_TRUE@	-I$(NVML_PATH)/include \
@@ -139,7 +140,7 @@ am__memcached_SOURCES_DIST = memcached.cpp memcached.h hash.cpp hash.h \
 	active_slabs.h active_slabs.cpp intset.cpp intset.h \
 	lf-linkedlist.cpp lf-linkedlist.h lf-common.h common.h \
 	random.h latency.h barrier.h main_test_loop.h utils.h \
-	measurements.h nv_lf_util.h nv_lf_util.cpp
+	measurements.h measurements.cpp nv_lf_util.h nv_lf_util.cpp
 @BUILD_CACHE_TRUE@am__objects_1 = memcached-cache.$(OBJEXT)
 @BUILD_SOLARIS_PRIVS_TRUE@am__objects_2 =  \
 @BUILD_SOLARIS_PRIVS_TRUE@	memcached-solaris_priv.$(OBJEXT)
@@ -148,6 +149,7 @@ am__memcached_SOURCES_DIST = memcached.cpp memcached.h hash.cpp hash.h \
 @USE_NV_LF_TRUE@	memcached-active_slabs.$(OBJEXT) \
 @USE_NV_LF_TRUE@	memcached-intset.$(OBJEXT) \
 @USE_NV_LF_TRUE@	memcached-lf-linkedlist.$(OBJEXT) \
+@USE_NV_LF_TRUE@	memcached-measurements.$(OBJEXT) \
 @USE_NV_LF_TRUE@	memcached-nv_lf_util.$(OBJEXT)
 am_memcached_OBJECTS = memcached-memcached.$(OBJEXT) \
 	memcached-hash.$(OBJEXT) memcached-jenkins_hash.$(OBJEXT) \
@@ -169,13 +171,14 @@ am__memcached_debug_SOURCES_DIST = memcached.cpp memcached.h hash.cpp \
 	active_slabs.h active_slabs.cpp intset.cpp intset.h \
 	lf-linkedlist.cpp lf-linkedlist.h lf-common.h common.h \
 	random.h latency.h barrier.h main_test_loop.h utils.h \
-	measurements.h nv_lf_util.h nv_lf_util.cpp
+	measurements.h measurements.cpp nv_lf_util.h nv_lf_util.cpp
 @BUILD_CACHE_TRUE@am__objects_5 = cache.$(OBJEXT)
 @BUILD_SOLARIS_PRIVS_TRUE@am__objects_6 = solaris_priv.$(OBJEXT)
 @ENABLE_SASL_TRUE@am__objects_7 = sasl_defs.$(OBJEXT)
 @USE_NV_LF_TRUE@am__objects_8 = hashtable.$(OBJEXT) \
 @USE_NV_LF_TRUE@	active_slabs.$(OBJEXT) intset.$(OBJEXT) \
-@USE_NV_LF_TRUE@	lf-linkedlist.$(OBJEXT) nv_lf_util.$(OBJEXT)
+@USE_NV_LF_TRUE@	lf-linkedlist.$(OBJEXT) measurements.$(OBJEXT) \
+@USE_NV_LF_TRUE@	nv_lf_util.$(OBJEXT)
 am__objects_9 = memcached.$(OBJEXT) hash.$(OBJEXT) \
 	jenkins_hash.$(OBJEXT) murmur3_hash.$(OBJEXT) slabs.$(OBJEXT) \
 	items.$(OBJEXT) assoc.$(OBJEXT) thread.$(OBJEXT) \
@@ -629,6 +632,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/items.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jenkins_hash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lf-linkedlist.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/measurements.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-active_slabs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-assoc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-cache.Po@am__quote@
@@ -639,6 +643,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-items.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-jenkins_hash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-lf-linkedlist.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-measurements.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-memcached.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-murmur3_hash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached-nv_lf_util.Po@am__quote@
@@ -926,6 +931,20 @@ memcached-lf-linkedlist.obj: lf-linkedlist.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='lf-linkedlist.cpp' object='memcached-lf-linkedlist.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-lf-linkedlist.obj `if test -f 'lf-linkedlist.cpp'; then $(CYGPATH_W) 'lf-linkedlist.cpp'; else $(CYGPATH_W) '$(srcdir)/lf-linkedlist.cpp'; fi`
+
+memcached-measurements.o: measurements.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-measurements.o -MD -MP -MF $(DEPDIR)/memcached-measurements.Tpo -c -o memcached-measurements.o `test -f 'measurements.cpp' || echo '$(srcdir)/'`measurements.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-measurements.Tpo $(DEPDIR)/memcached-measurements.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='measurements.cpp' object='memcached-measurements.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-measurements.o `test -f 'measurements.cpp' || echo '$(srcdir)/'`measurements.cpp
+
+memcached-measurements.obj: measurements.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-measurements.obj -MD -MP -MF $(DEPDIR)/memcached-measurements.Tpo -c -o memcached-measurements.obj `if test -f 'measurements.cpp'; then $(CYGPATH_W) 'measurements.cpp'; else $(CYGPATH_W) '$(srcdir)/measurements.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/memcached-measurements.Tpo $(DEPDIR)/memcached-measurements.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='measurements.cpp' object='memcached-measurements.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o memcached-measurements.obj `if test -f 'measurements.cpp'; then $(CYGPATH_W) 'measurements.cpp'; else $(CYGPATH_W) '$(srcdir)/measurements.cpp'; fi`
 
 memcached-nv_lf_util.o: nv_lf_util.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(memcached_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT memcached-nv_lf_util.o -MD -MP -MF $(DEPDIR)/memcached-nv_lf_util.Tpo -c -o memcached-nv_lf_util.o `test -f 'nv_lf_util.cpp' || echo '$(srcdir)/'`nv_lf_util.cpp

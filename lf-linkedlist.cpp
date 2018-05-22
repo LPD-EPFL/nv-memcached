@@ -5,27 +5,7 @@ const int linkedlist_node_size = sizeof(node_t);
 
 //#define DO_DEBUG 1
 
-void finalize_node(void * node, void * context, void* tls) {
-	EpochFreeNode(node);
-}
 
-static inline UINT_PTR unmarked_ptr(UINT_PTR p) {
-	return(p & ~(UINT_PTR)0x01);
-}
-
-#define UNMARKED_PTR(p) (node_t*)unmarked_ptr((UINT_PTR) p)
-
-static inline UINT_PTR marked_ptr(UINT_PTR p) {
-	return (p | (UINT_PTR)0x01);
-}
-
-#define MARKED_PTR(p) (node_t*)marked_ptr((UINT_PTR) p)
-
-static inline int ptr_is_marked(UINT_PTR p) {
-	return (int)(p & (UINT_PTR)0x01);
-}
-
-#define PTR_IS_MARKED(p) ptr_is_marked((UINT_PTR) p)
 
 linkedlist_t* new_linkedlist(EpochThread epoch) {
 	//TODO: in persistent memory, this might have to be done differently;
@@ -277,6 +257,25 @@ svalue_t linkedlist_insert(linkedlist_t* ll, skey_t key, svalue_t val, int repla
 }
 
 
+svalue_t linkedlist_find_simple(linkedlist_t* ll, skey_t key, const char* full_key, const size_t nkey) {
+
+	volatile node_t* prev = (*ll);
+	volatile node_t* node = (node_t*)unmark_ptr_cache((uintptr_t)(*ll)->next);
+	
+	while ((node->key <= key) &&
+			((node->key != key) || (keycmp_key_item(full_key, nkey, node->value) > 0))) {
+		prev = node;
+		node = UNMARKED_PTR(node->next);
+		node= (volatile node_t*)unmark_ptr_cache((UINT_PTR)node);
+	}
+
+	svalue_t val = node->value;
+	if ((node->key == key) && (keycmp_key_item(full_key, nkey, val)==0) && (!PTR_IS_MARKED(node->next)) && likely(node->value == val)) {
+		return node->value;
+	}
+
+	return 0;
+}
 
 svalue_t linkedlist_find(linkedlist_t* ll, skey_t key, const char* full_key, const size_t nkey, EpochThread epoch, linkcache_t* buffer) {
 

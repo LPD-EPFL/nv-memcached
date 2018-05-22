@@ -315,11 +315,14 @@ static ht_intset_t* hashtable = NULL;
 static linkcache_t* lc = NULL;
 static __thread EpochThread epoch = NULL;
 static __thread active_page_table_t* page_table = NULL;
+static active_page_table_t** page_tables = NULL;
 
 void assoc_init(const int hashtable_init, int num_threads) {
     if (hashtable_init) {
         hashpower = hashtable_init;
     }
+
+    page_tables = (active_page_table_t**)malloc(sizeof(active_page_table_t*) * (num_threads));
 
     lc = cache_create();
     EpochGlobalInit(lc);
@@ -346,6 +349,7 @@ void assoc_thread_init(int thread_id) {
 
     epoch =  EpochThreadInit(thread_id);
     page_table = (active_page_table_t*)GetOpaquePageBuffer(epoch);
+    page_tables[thread_id] = page_table;
     // clht_gc_thread_init(hashtable, thread_id);
     // obj_alloc = (ssmem_allocator_t*)malloc(sizeof(ssmem_allocator_t));
     // if (!obj_alloc) {
@@ -353,6 +357,11 @@ void assoc_thread_init(int thread_id) {
     //     exit(EXIT_FAILURE);
     // }
     // ssmem_alloc_init_fs_size(obj_alloc, SSMEM_DEFAULT_MEM_SIZE, SSMEM_GC_FREE_SET_SIZE, thread_id);
+}
+
+void assoc_recover(active_slab_table_t** slab_tables, int num_threads) {
+    ht_recover(hashtable, page_tables, num_threads);
+    slabs_recover(slab_tables, hashtable, num_threads);
 }
 
 item* assoc_find(const char* key, const size_t nkey, const uint32_t hv) {

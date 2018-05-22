@@ -21,7 +21,7 @@
  *
  */
 
-
+#pragma once
 
 #include "hashtable.h"
 
@@ -29,5 +29,6 @@ svalue_t ht_contains(ht_intset_t* set, skey_t key, const char* full_key, const s
 svalue_t ht_add(ht_intset_t* set, skey_t key, svalue_t val, int replace, EpochThread epoch, linkcache_t* buffer);
 svalue_t ht_remove(ht_intset_t* set, skey_t key, const char* full_key, const size_t nkey, EpochThread epoch, linkcache_t* buffer);
 
-int is_reachable(linkedlist_t* ll, void* address);
-void recover(linkedlist_t* ll, linkcache_t* buffer, active_page_table_t** page_buffers, int num_page_buffers);
+int item_is_reachable(ht_intset_t* ht, void* it);
+int is_reachable(ht_intset_t* ll, void* address);
+void ht_recover(ht_intset_t* ll, active_page_table_t** page_buffers, int num_page_buffers);

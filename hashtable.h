@@ -21,6 +21,8 @@
  *
  */
 
+#pragma once
+
 #include "lf-linkedlist.h"
 #include <libpmemobj.h>
 

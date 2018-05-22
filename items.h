@@ -9,6 +9,7 @@ static __thread uint64_t* my_timestamp;
 static __thread int my_id;
 #define ITEM_TIMESTAMP ((*my_timestamp)++)
 static __thread active_slab_table_t* slab_table;
+static active_slab_table_t** slab_tables;
 
 
  uint64_t getMyTimestamp(); 
@@ -17,6 +18,7 @@ static __thread active_slab_table_t* slab_table;
 
 void item_gc_init(unsigned int size_limit, int num_threads);
 void item_gc_thread_init(int thread_id);
+void recover();
 #endif
 
 /*@null@*/

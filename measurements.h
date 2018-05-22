@@ -9,6 +9,8 @@ extern "C" {
 
 /* #define DO_TIMINGS */
 
+extern ticks getticks_correction_calc();
+
 
 #ifndef REF_SPEED_GHZ
 #  if defined(PLATFORM_MCORE) | defined(XEON) | defined(OPTERON)

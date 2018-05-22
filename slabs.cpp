@@ -374,7 +374,7 @@ static void *do_slabs_alloc(const size_t size, unsigned int id, unsigned int *to
             active_slab_table_t* my_slab_table = getMySlabTable();
             uint64_t my_current_timestamp = getMyTimestamp();
             uint64_t my_last_collect = getMyLastCollect();
-            mark_slab(my_slab_table, it, it->slab, my_current_timestamp, my_last_collect, 0);
+            mark_slab(my_slab_table, it, it->slab, it->slabs_clsid, my_current_timestamp, my_last_collect, 0);
         } TX_FINALLY {
             ret = (void *)it;
         } TX_END
@@ -402,18 +402,61 @@ static void do_slabs_free(void *ptr, const size_t size, unsigned int id) {
     p = &root->slabclass[id];
 
     it = (item *)ptr;
-    it->it_flags |= ITEM_SLABBED;
     it->slabs_clsid = 0;
 
     it->prev = 0;
     it->next = (item*)p->slots;
     if (it->next) it->next->prev = it;
     p->slots = it;
+    it->it_flags |= ITEM_SLABBED;
 
     p->sl_curr++;
     p->requested -= size;
     return;
 }
+
+void slabs_recover(active_slab_table_t** slab_tables, ht_intset_t* ht, int num_threads) {
+    slabclass_t* p;
+    size_t i,j,k;
+    size_t num_slabs;
+    slab_descriptor_t* crt;
+    char* current_address;
+
+    for (i = 0; i < num_threads; i++) {
+        num_slabs = slab_tables[i]->last_in_use;
+        crt = slab_tables[i]->slabs;
+        for (j = 0; j < num_slabs; j++) {
+            current_address = (char*)crt[j].slab;
+            if (current_address != NULL) {
+                p = &root->slabclass[crt[j].slabs_clsid];            
+                for (k = 0; k < p->perslab; k++) {
+                    item* it = (item*)current_address;
+                    if ((it->it_flags & ITEM_SLABBED) == 0) {
+                        if (!item_is_reachable(ht, (void*)it)) {
+
+                            // remove it from whatever list it is in
+                            if (it->prev) {
+                                it->prev->next = it->next;
+                            }
+                            if (it->next) {
+                                it->next->prev = it->prev;
+                            }
+                            // add item to slots
+                            it->prev = 0;
+                            it->next = (item*)p->slots;
+                            if (it->next) it->next->prev = it;
+                            p->slots = it;
+                            // mark item slabbed
+                            it->it_flags |= ITEM_SLABBED;
+                        }
+                    }
+                    current_address += p->size;
+                }
+            }
+        }
+    }
+}
+
 
 static int nz_strcmp(int nzlength, const char *nz, const char *z) {
     int zlength=strlen(z);

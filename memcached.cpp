@@ -5091,7 +5091,9 @@ static void remove_pidfile(const char *pid_file) {
 }
 
 static void sig_handler(const int sig) {
-    printf("Signal handled: %s.\n", strsignal(sig));
+    printf("Signal handled: %s(%d).\n", strsignal(sig), sig);
+    pause_threads(PAUSE_ALL_THREADS);
+    recover();
     exit(EXIT_SUCCESS);
 }
 

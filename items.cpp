@@ -13,6 +13,7 @@
 #include <time.h>
 #include <assert.h>
 #include <unistd.h>
+#include "measurements.h"
 
 /* Forward Declarations */
 static void item_link_q(item *it);
@@ -122,6 +123,7 @@ void item_gc_init(unsigned int size_limit, int num_threads) {
     }
     timestamps = (uint64_t*) malloc(num_threads*sizeof(uint64_t));
     lastCollectEpochs = (uint64_t*) malloc(num_threads*sizeof(uint64_t));
+    slab_tables = (active_slab_table_t**)malloc(sizeof(active_slab_table_t*) * (num_threads));
 
     if (!current_free_list || !current_free_list->ts_snapshot ||
         !last_free_list    || !last_free_list->ts_snapshot    || !timestamps)
@@ -135,6 +137,7 @@ void item_gc_thread_init(int thread_id) {
     my_timestamp = &timestamps[thread_id];
     my_id = thread_id;
     slab_table = create_active_slab_table(thread_id);
+    slab_tables[my_id] = slab_table;
     printf("Thread %d done initializing. Timestamp address: %p, value %llu, slab table %p\n", my_id, my_timestamp, *my_timestamp, slab_table);
 }
 
@@ -211,6 +214,18 @@ static void free_list_try_to_release() {
     pthread_mutex_lock(&free_list_lock);
     do_free_list_try_to_swap();
     pthread_mutex_unlock(&free_list_lock);
+}
+
+void recover() {
+    volatile ticks corr = getticks_correction_calc();
+    ticks startCycles = getticks();    
+  
+    assoc_recover(slab_tables, ts_size);
+  
+    ticks endCycles = getticks();
+    ticks recovery_cycles = endCycles - startCycles + corr;
+    printf("Recovery takes (cycles): %llu\n", recovery_cycles);
+
 }
 #endif
 
@@ -442,7 +457,7 @@ void item_free(item *it) {
     DEBUG_REFCNT(it, 'F');
     slabs_free(it, ntotal, clsid);
 #else
-    mark_slab(getMySlabTable(), it, it->slab, getMyTimestamp(), getMyLastCollect(), 1);
+    mark_slab(getMySlabTable(), it, it->slab, it->slabs_clsid, getMyTimestamp(), getMyLastCollect(), 1);
     free_list_insert(it);
 #endif
 }

@@ -1,6 +1,7 @@
 #ifndef _ACTIVE_SLABS_H_
 #define _ACTIVE_SLABS_H_
 
+#pragma once 
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,6 +26,7 @@
 #define MAX_NUM_SLABS 8192
 
 typedef struct slab_descriptor_t {
+    uint8_t slabs_clsid;
     void* slab; 
     uint64_t lastAllocEpoch;
     uint64_t lastUnlinkEpoch;
@@ -51,7 +53,7 @@ active_slab_table_t* create_active_slab_table(uint32_t id);
 void destroy_active_slab_table(active_slab_table_t* to_delete);
 
 //if a page is not present, add it to the buffer and persist the addition
-void mark_slab(active_slab_table_t* slabs, void* ptr, void* slab, uint64_t currentTs, uint64_t collectTs, int isRemove);
+void mark_slab(active_slab_table_t* slabs, void* ptr, void* slab, uint8_t slabclassid, uint64_t currentTs, uint64_t collectTs, int isRemove);
 
 //clear all the pages in the buffer
 void clear_buffer(active_slab_table_t* slabs);

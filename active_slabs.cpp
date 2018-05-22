@@ -100,7 +100,7 @@ void clear_buffer(active_slab_table_t* buffer, uint64_t cleanTs, uint64_t currTs
     mark a slab as having data that was either allocated or freed in the current epoch
 */
 
-void mark_slab(active_slab_table_t* slabs, void* ptr, void* slab, uint64_t currentTs, uint64_t collectTs, int isRemove) {
+void mark_slab(active_slab_table_t* slabs, void* ptr, void* slab, uint8_t slabclassid, uint64_t currentTs, uint64_t collectTs, int isRemove) {
 
 
     if ((slabs->clear_all) || (slabs->current_size > CLEAN_THRESHOLD)) {
@@ -147,6 +147,7 @@ void mark_slab(active_slab_table_t* slabs, void* ptr, void* slab, uint64_t curre
 
     if (first_empty != SIZE_MAX){ 
         slabs->slabs[first_empty].slab = slab;
+        slabs->slabs[first_empty].slabs_clsid = slabclassid;
         if (isRemove) {
             slabs->slabs[first_empty].lastUnlinkEpoch = currentTs;
             slabs->slabs[first_empty].lastAllocEpoch = 0;
@@ -178,6 +179,8 @@ void mark_slab(active_slab_table_t* slabs, void* ptr, void* slab, uint64_t curre
     assert(slabs->slabs[old].slab == NULL); //we just expanded; this means the newly enabled slab entries should be null
 
     slabs->slabs[old].slab = slab;
+    slabs->slabs[old].slabs_clsid = slabclassid;
+
     if (isRemove) {
         slabs->slabs[old].lastUnlinkEpoch = currentTs;
         slabs->slabs[old].lastAllocEpoch = 0;
